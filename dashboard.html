@@ -456,14 +456,7 @@
       </div>
     </div>
     
-    <div class="section">
-      <div class="section-title">Total Pipeline Value</div>
-      <div class="big-metric">
-        <div class="big-metric-label">Active Pipeline</div>
-        <div class="big-metric-value" id="pipeline-value">$7.5M</div>
-        <div class="metric-sub">from 33 leads (quoted + booked)</div>
-      </div>
-    </div>
+
     
     <div class="section">
       <div class="section-title">This Week</div>
@@ -744,9 +737,7 @@ function renderPipeline() {
   document.getElementById('pipeline-booked').textContent = p.booked;
   document.getElementById('pipeline-nogo').textContent = p.no_go;
   
-  const value = DAILY_REPORT.airtable.total_pipeline_value;
-  const formatted = '$' + (value / 1000000).toFixed(1) + 'M';
-  document.getElementById('pipeline-value').textContent = formatted;
+  
   
   document.getElementById('new-leads-7d').textContent = DAILY_REPORT.airtable.new_leads_7d;
   
