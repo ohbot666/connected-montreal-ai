@@ -1,0 +1,1477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎯 Connected Montreal — AI Mission Control</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0a0f; color: #e0e0e0;
+    font-family: 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
+    height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+  }
+  
+  .topbar {
+    background: #111118; border-bottom: 1px solid #1e1e2e;
+    padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+  }
+  
+  .topbar-title {
+    font-size: 15px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;
+  }
+  
+  .topbar-title span.time {
+    font-size: 11px; color: #888; font-weight: 400; margin-left: 16px;
+  }
+  
+  .status-indicators {
+    display: flex; gap: 12px; font-size: 10px; align-items: center;
+  }
+  
+  .status-dot {
+    width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 4px;
+  }
+  
+  .status-dot.online { background: #22c55e; }
+  .status-dot.offline { background: #cc0000; }
+  .status-dot.idle { background: #f0a500; }
+  
+  .status-indicator {
+    display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: rgba(255,255,255,.05); border-radius: 4px; color: #aaa;
+  }
+  
+  .main-content {
+    display: flex; flex: 1; overflow: hidden; gap: 0;
+  }
+  
+  .column {
+    flex: 1; display: flex; flex-direction: column; overflow: auto; border-right: 1px solid #1e1e2e;
+    padding: 16px; background: rgba(10,10,15,.5);
+  }
+  
+  .column:last-child { border-right: none; }
+  
+  .section {
+    margin-bottom: 20px;
+  }
+  
+  .section-title {
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #666;
+    margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+  }
+  
+  .section-title::before {
+    content: '▶'; font-size: 8px; color: #444;
+  }
+  
+  /* PIPELINE SECTION */
+  .pipeline-funnel {
+    display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;
+  }
+  
+  .funnel-stage {
+    background: #111118; border: 1px solid #1e1e2e; border-radius: 6px; padding: 12px; text-align: center;
+  }
+  
+  .funnel-stage.active {
+    background: #15120a; border-color: #f0a500;
+  }
+  
+  .funnel-label {
+    font-size: 9px; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;
+  }
+  
+  .funnel-count {
+    font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 2px;
+  }
+  
+  .funnel-stage.active .funnel-count {
+    color: #f0a500;
+  }
+  
+  .big-metric {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border: 1px solid #2a2a4a;
+    border-radius: 8px; padding: 14px; margin-bottom: 12px; text-align: center;
+  }
+  
+  .big-metric-label {
+    font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;
+  }
+  
+  .big-metric-value {
+    font-size: 28px; font-weight: 700; color: #22c55e; letter-spacing: -1px;
+  }
+  
+  .metric-sub {
+    font-size: 10px; color: #666; margin-top: 3px;
+  }
+  
+  /* LEADS TABLE */
+  .leads-list {
+    background: #111118; border: 1px solid #1e1e2e; border-radius: 6px; overflow: hidden; font-size: 10px;
+  }
+  
+  .leads-list-header {
+    background: #0a0a0f; border-bottom: 1px solid #1e1e2e; padding: 8px 10px;
+    display: grid; grid-template-columns: 1fr 80px 60px; gap: 8px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  
+  .leads-list-row {
+    border-bottom: 1px solid #1a1a2a; padding: 8px 10px; display: grid;
+    grid-template-columns: 1fr 80px 60px; gap: 8px; align-items: center;
+    transition: background .2s;
+  }
+  
+  .leads-list-row:last-child { border-bottom: none; }
+  .leads-list-row:hover { background: rgba(255,255,255,.02); }
+  
+  .lead-name { color: #e0e0e0; font-weight: 500; }
+  .lead-status { color: #888; font-size: 9px; }
+  .lead-days {
+    padding: 2px 6px; border-radius: 3px; background: rgba(200,0,0,.1); color: #ff6b6b; font-size: 9px; text-align: center; font-weight: 600;
+  }
+  
+  .lead-days.recent { background: rgba(34,197,94,.1); color: #4ade80; }
+  .lead-days.very-recent { background: rgba(34,197,94,.2); color: #22c55e; }
+  
+  /* TRAFFIC SECTION */
+  .traffic-metric {
+    background: #111118; border: 1px solid #1e1e2e; border-radius: 6px; padding: 10px; margin-bottom: 8px;
+  }
+  
+  .traffic-metric-label { font-size: 9px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+  .traffic-metric-value { font-size: 16px; font-weight: 700; color: #fff; margin-top: 4px; }
+  .traffic-metric-sub { font-size: 9px; color: #666; margin-top: 2px; }
+  
+  .sources-list {
+    background: #111118; border: 1px solid #1e1e2e; border-radius: 6px; font-size: 10px; overflow: hidden;
+  }
+  
+  .source-row {
+    border-bottom: 1px solid #1a1a2a; padding: 8px 10px; display: flex; justify-content: space-between; align-items: center;
+  }
+  
+  .source-row:last-child { border-bottom: none; }
+  .source-name { color: #ccc; flex: 1; }
+  .source-count { color: #f0a500; font-weight: 600; }
+  
+  .source-bar {
+    width: 40px; height: 3px; background: rgba(240,165,0,.3); border-radius: 2px; margin-left: 8px; display: inline-block;
+  }
+  
+  /* INSIGHTS SECTION */
+  .insight-card {
+    background: #111118; border: 1px solid #1e1e2e; border-radius: 6px; padding: 10px; margin-bottom: 8px; border-left: 3px solid #1e1e2e;
+  }
+  
+  .insight-card.opportunity { border-left-color: #22c55e; background: rgba(34,197,94,.05); }
+  .insight-card.issue { border-left-color: #cc0000; background: rgba(204,0,0,.05); }
+  .insight-card.alert { border-left-color: #f0a500; background: rgba(240,165,0,.05); }
+  
+  .insight-icon { font-size: 12px; margin-right: 4px; }
+  .insight-text { font-size: 10px; line-height: 1.4; color: #ccc; }
+  .insight-card.opportunity .insight-text { color: #4ade80; }
+  .insight-card.issue .insight-text { color: #ff6b6b; }
+  .insight-card.alert .insight-text { color: #fbbf24; }
+  
+  .pending-approvals {
+    background: linear-gradient(135deg, rgba(58,95,255,.1) 0%, rgba(58,95,255,.05) 100%); border: 1px solid rgba(58,95,255,.2);
+    border-radius: 6px; padding: 10px; margin-bottom: 8px; font-size: 10px;
+  }
+  
+  .pending-approvals-label { color: #7a8fff; font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+  .pending-approvals-item { color: #5a7aff; font-size: 9px; margin-bottom: 4px; }
+  
+  .action-buttons {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;
+  }
+  
+  .action-btn {
+    background: #1e1e2e; color: #7a8fff; border: 1px solid #2a2a4a;
+    padding: 8px 12px; border-radius: 6px; font-size: 10px; cursor: pointer; font-family: inherit;
+    text-align: center; transition: all .2s; font-weight: 600; letter-spacing: 0.5px;
+  }
+  
+  .action-btn:hover {
+    background: #2a2a4a; border-color: #3a5fff; color: #fff; box-shadow: 0 0 10px rgba(58,95,255,.2);
+  }
+  
+  /* DATE RANGE SELECTOR */
+  .date-range-selector {
+    display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;
+  }
+  
+  .date-btn {
+    background: #1e1e2e; color: #999; border: 1px solid #2a2a4a;
+    padding: 6px 10px; border-radius: 4px; font-size: 9px; cursor: pointer; font-family: inherit;
+    transition: all .2s; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
+  }
+  
+  .date-btn:hover {
+    background: #252530; border-color: #333;
+  }
+  
+  .date-btn.active {
+    background: #f0a500; color: #000; border-color: #f0a500;
+  }
+  
+  .custom-date-inputs {
+    display: none; gap: 4px; margin-bottom: 12px;
+  }
+  
+  .custom-date-inputs.show {
+    display: flex;
+  }
+  
+  .custom-date-inputs input {
+    background: #1e1e2e; color: #e0e0e0; border: 1px solid #2a2a4a;
+    padding: 6px 8px; border-radius: 4px; font-size: 9px; font-family: inherit;
+  }
+  
+  .custom-date-inputs input::placeholder {
+    color: #555;
+  }
+  
+  .custom-date-inputs button {
+    background: #f0a500; color: #000; border: none;
+    padding: 6px 10px; border-radius: 4px; font-size: 9px; cursor: pointer; font-weight: 600;
+    transition: all .2s;
+  }
+  
+  .custom-date-inputs button:hover {
+    background: #ffb81c;
+  }
+  
+  .loading-indicator {
+    display: inline; color: #f0a500; font-style: italic; font-size: 9px;
+  }
+  
+  .error-message {
+    display: none; background: rgba(204,0,0,.1); border: 1px solid rgba(204,0,0,.2);
+    border-radius: 4px; padding: 8px; margin-bottom: 8px; font-size: 9px; color: #ff6b6b;
+  }
+  
+  .error-message.show {
+    display: block;
+  }
+  
+  /* EXPANDABLE LISTS */
+  .expandable-list {
+    position: relative;
+  }
+  
+  .list-items {
+    overflow: hidden;
+  }
+  
+  .list-items.collapsed {
+    max-height: 200px;
+  }
+  
+  .list-items.expanded {
+    max-height: none;
+  }
+  
+  .list-toggle {
+    display: flex; justify-content: center; align-items: center; padding: 8px 10px;
+    border-top: 1px solid #1a1a2a; color: #666; font-size: 9px; cursor: pointer;
+    transition: all .2s; font-weight: 600;
+  }
+  
+  .list-toggle:hover {
+    color: #f0a500; background: rgba(240,165,0,.05);
+  }
+  
+  .toggle-icon {
+    display: inline-block; margin-right: 4px; font-size: 8px;
+  }
+  
+  /* PROPOSALS SECTION */
+  .proposals-summary {
+    background: linear-gradient(135deg, rgba(58,95,255,.1) 0%, rgba(58,95,255,.05) 100%);
+    border: 1px solid rgba(58,95,255,.2); border-radius: 6px; padding: 10px;
+    margin-bottom: 8px; font-size: 10px; cursor: pointer;
+    transition: all .2s; display: flex; justify-content: space-between; align-items: center;
+  }
+  
+  .proposals-summary:hover {
+    background: linear-gradient(135deg, rgba(58,95,255,.15) 0%, rgba(58,95,255,.1) 100%);
+    border-color: rgba(58,95,255,.3);
+  }
+  
+  .proposals-summary-text {
+    color: #7a8fff; font-weight: 600; display: flex; align-items: center; gap: 6px;
+  }
+  
+  .proposals-summary-toggle {
+    font-size: 10px; color: #7a8fff;
+  }
+  
+  .proposals-list {
+    display: none;
+  }
+  
+  .proposals-list.show {
+    display: block;
+  }
+  
+  .proposal-card {
+    background: #111118; border: 1px solid #1e1e2e; border-left: 3px solid #1e1e2e;
+    border-radius: 6px; padding: 10px; margin-bottom: 8px; font-size: 10px;
+    transition: all .2s;
+  }
+  
+  .proposal-card:hover {
+    background: #151520; border-color: rgba(255,255,255,.05);
+  }
+  
+  .proposal-card.high {
+    border-left-color: #ff6b6b; background: rgba(204,0,0,.05);
+  }
+  
+  .proposal-card.medium {
+    border-left-color: #fbbf24; background: rgba(251,191,36,.05);
+  }
+  
+  .proposal-header {
+    display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;
+  }
+  
+  .proposal-priority {
+    display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 8px;
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  
+  .proposal-priority.high {
+    background: rgba(204,0,0,.2); color: #ff6b6b;
+  }
+  
+  .proposal-priority.medium {
+    background: rgba(251,191,36,.2); color: #fbbf24;
+  }
+  
+  .proposal-issue {
+    color: #ccc; line-height: 1.3; margin-bottom: 8px; display: -webkit-box;
+    -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  
+  .proposal-action {
+    display: flex; justify-content: flex-end;
+  }
+  
+  .proposal-btn {
+    background: #1e1e2e; color: #7a8fff; border: 1px solid #2a2a4a;
+    padding: 4px 8px; border-radius: 4px; font-size: 9px; cursor: pointer; font-family: inherit;
+    transition: all .2s; font-weight: 600;
+  }
+  
+  .proposal-btn:hover {
+    background: #2a2a4a; border-color: #3a5fff; color: #fff; box-shadow: 0 0 8px rgba(58,95,255,.2);
+  }
+  
+  .bottombar {
+    background: #111118; border-top: 1px solid #1e1e2e; padding: 12px 20px;
+    display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+    font-size: 10px; color: #666;
+  }
+  
+  .bottombar-left {
+    display: flex; gap: 20px; align-items: center;
+  }
+  
+  .bottombar-right {
+    display: flex; gap: 10px; align-items: center;
+  }
+  
+  .refresh-btn {
+    background: #1e1e2e; color: #7a8fff; border: 1px solid #2a2a4a;
+    padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 10px; font-family: inherit;
+    transition: all .2s;
+  }
+  
+  .refresh-btn:hover {
+    background: #2a2a4a; border-color: #3a5fff; color: #fff;
+  }
+  
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #444; }
+  
+  /* Responsive */
+  @media (max-width: 1400px) {
+    .column { padding: 12px; }
+    .topbar { padding: 10px 14px; }
+    .topbar-title { font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-title">
+    🎯 Connected Montreal — AI Mission Control
+    <span class="time" id="lastUpdatedTime">Last updated: 2m ago</span>
+  </div>
+  <div class="status-indicators">
+    <div class="status-indicator">
+      <span class="status-dot online"></span> PostHog
+    </div>
+    <div class="status-indicator">
+      <span class="status-dot online"></span> Analytics
+    </div>
+    <div class="status-indicator">
+      <span class="status-dot online"></span> Airtable
+    </div>
+    <div class="status-indicator">
+      <span class="status-dot idle"></span> Google Ads
+    </div>
+  </div>
+</div>
+
+<div class="main-content">
+  
+  <!-- COLUMN 1: LEAD PIPELINE -->
+  <div class="column" id="col1">
+    <div class="section">
+      <div class="section-title">Pipeline Funnel</div>
+      <div class="pipeline-funnel">
+        <div class="funnel-stage">
+          <div class="funnel-label">New</div>
+          <div class="funnel-count" id="pipeline-new">4</div>
+        </div>
+        <div class="funnel-stage active">
+          <div class="funnel-label">Quoted</div>
+          <div class="funnel-count" id="pipeline-quoted">29</div>
+        </div>
+        <div class="funnel-stage">
+          <div class="funnel-label">Booked</div>
+          <div class="funnel-count" id="pipeline-booked">0</div>
+        </div>
+        <div class="funnel-stage">
+          <div class="funnel-label">No-Go</div>
+          <div class="funnel-count" id="pipeline-nogo">0</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Total Pipeline Value</div>
+      <div class="big-metric">
+        <div class="big-metric-label">Active Pipeline</div>
+        <div class="big-metric-value" id="pipeline-value">$7.5M</div>
+        <div class="metric-sub">from 33 leads (quoted + booked)</div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">This Week</div>
+      <div class="traffic-metric">
+        <div class="traffic-metric-label">New Leads</div>
+        <div class="traffic-metric-value" id="new-leads-7d">15</div>
+        <div class="traffic-metric-sub">7-day total</div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">New Requests</div>
+      <div style="background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.2); border-radius: 6px; padding: 8px; margin-bottom: 10px;">
+        <div style="font-size: 16px; font-weight: 700; color: #4ade80;">5</div>
+        <div style="font-size: 9px; color: #4ade80; margin-top: 2px;">new requests waiting for contact</div>
+      </div>
+      <div class="leads-list">
+        <div class="leads-list-header" style="grid-template-columns: 1fr 50px 70px;">
+          <div>Name</div>
+          <div>Pax</div>
+          <div>Date</div>
+        </div>
+        <div id="new-requests-rows"></div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Follow-ups Needed</div>
+      <div style="background: rgba(200,0,0,.1); border: 1px solid rgba(204,0,0,.2); border-radius: 6px; padding: 8px; margin-bottom: 10px;">
+        <div style="font-size: 16px; font-weight: 700; color: #ff6b6b;" id="followup-count">10</div>
+        <div style="font-size: 9px; color: #ff6b6b; margin-top: 2px;">leads waiting for contact</div>
+      </div>
+      
+      <div class="leads-list">
+        <div class="leads-list-header">
+          <div>Name</div>
+          <div>Status</div>
+          <div>Days</div>
+        </div>
+        <div id="leads-list-rows"></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- COLUMN 2: TRAFFIC & ENGAGEMENT -->
+  <div class="column" id="col2">
+    <div class="section">
+      <div class="section-title">Traffic & Pageviews</div>
+      
+      <!-- Date Range Selector -->
+      <div class="date-range-selector">
+        <button class="date-btn" data-range="1d" onclick="fetchTrafficData('1d')">1D</button>
+        <button class="date-btn active" data-range="7d" onclick="fetchTrafficData('7d')">7D</button>
+        <button class="date-btn" data-range="30d" onclick="fetchTrafficData('30d')">1M</button>
+        <button class="date-btn" data-range="custom" onclick="toggleCustomDateInput()">Custom</button>
+      </div>
+      
+      <div class="custom-date-inputs" id="custom-date-inputs">
+        <input type="date" id="custom-from" placeholder="From">
+        <input type="date" id="custom-to" placeholder="To">
+        <button onclick="fetchTrafficDataCustom()">Load</button>
+      </div>
+      
+      <div class="error-message" id="traffic-error"></div>
+      
+      <div class="traffic-metric">
+        <div class="traffic-metric-label">Total Pageviews <span id="traffic-period">(7d)</span></div>
+        <div class="traffic-metric-value" id="total-pageviews">795</div>
+        <div class="traffic-metric-sub">Avg <strong id="avg-pageviews">113.6</strong>/day</div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Traffic Sources</div>
+      <div class="expandable-list">
+        <div class="sources-list">
+          <div class="list-items collapsed" id="sources-list"></div>
+          <div class="list-toggle" onclick="toggleList('sources-list')">
+            <span class="toggle-icon">▼</span>
+            <span id="sources-toggle-text">Show more</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Top Pages</div>
+      <div class="expandable-list">
+        <div class="sources-list">
+          <div class="list-items collapsed" id="top-pages-list"></div>
+          <div class="list-toggle" onclick="toggleList('top-pages-list')">
+            <span class="toggle-icon">▼</span>
+            <span id="top-pages-toggle-text">Show more</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Ad Landing Pages</div>
+      <div class="expandable-list">
+        <div class="sources-list">
+          <div class="list-items collapsed" id="ad-pages-list"></div>
+          <div class="list-toggle" onclick="toggleList('ad-pages-list')">
+            <span class="toggle-icon">▼</span>
+            <span id="ad-pages-toggle-text">Show more</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- COLUMN 3: AI INSIGHTS & ACTIONS -->
+  <div class="column" id="col3">
+    <div class="section">
+      <div class="section-title">Opportunities</div>
+      <div id="opportunities-list"></div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Issues & Alerts</div>
+      <div id="issues-list"></div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Pending Approvals</div>
+      
+      <div class="proposals-summary" onclick="toggleProposals()">
+        <div class="proposals-summary-text">
+          <span>💡 AI Recommendations — <strong id="proposals-count">5</strong> pending</span>
+        </div>
+        <div class="proposals-summary-toggle" id="proposals-toggle-icon">▼ Show</div>
+      </div>
+      
+      <div class="proposals-list" id="proposals-list"></div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Quick Actions</div>
+      <div class="action-buttons">
+        <button class="action-btn" onclick="alert('Opening Google Ads dashboard…')">📊 View Ads</button>
+        <button class="action-btn" onclick="alert('Launching analysis…')">🔍 Run Analysis</button>
+        <button class="action-btn" onclick="alert('Generating report…')">📄 Generate Report</button>
+        <button class="action-btn" onclick="alert('Opening leads CRM…')">👥 CRM</button>
+      </div>
+    </div>
+  </div>
+  
+</div>
+
+<div class="bottombar">
+  <div class="bottombar-left">
+    <span>📅 Report generated: <strong id="generated-time">Feb 26, 1:31 PM</strong></span>
+    <span>📡 Data freshness: <strong style="color: #22c55e;">live</strong></span>
+  </div>
+  <div class="bottombar-right">
+    <button class="refresh-btn" onclick="location.reload()">🔄 Refresh Data</button>
+  </div>
+</div>
+
+<script>
+// Embedded data from JSON files
+const DAILY_REPORT = {
+  "generated_at": "2026-02-26T13:31:17.332407",
+  "period_days": 7,
+  "posthog": {
+    "top_pages": [
+      {"url": "/", "views": 177},
+      {"url": "/bachelor-party-a-v2/", "views": 67},
+      {"url": "/bachelor-party-packages/", "views": 58},
+      {"url": "/itinerary-first-ballot-hall-of-famer/", "views": 39},
+      {"url": "/the-ultimate-montreal-strip-clubs-guide/", "views": 32},
+      {"url": "/blogs/austin-brewery-distillery-crawl-bachelor-party", "views": 26},
+      {"url": "/montreal-bachelor-party-a/", "views": 23},
+      {"url": "/activities", "views": 21},
+      {"url": "/itinerary-bros-and-respectable-ladies/", "views": 21},
+      {"url": "/itineraries", "views": 17}
+    ],
+    "traffic_sources": [
+      {"source": "www.google.com", "sessions": 323},
+      {"source": "$direct", "sessions": 244},
+      {"source": "connectedmontreal.com", "sessions": 148},
+      {"source": "www.connectedaustin.com", "sessions": 47},
+      {"source": "www.reddit.com", "sessions": 20},
+      {"source": "com.google.android.googlequicksearchbox", "sessions": 3},
+      {"source": "youtube.com", "sessions": 2},
+      {"source": "www.bing.com", "sessions": 2}
+    ],
+    "total_pageviews_7d": 795,
+    "avg_daily_pageviews": 113.6,
+    "ad_landing_pages": [
+      {"url": "/bachelor-party-a-v2/", "views": 39},
+      {"url": "/", "views": 38},
+      {"url": "/bachelor-party-packages/", "views": 27},
+      {"url": "/montreal-bachelor-party-a/", "views": 9},
+      {"url": "/itinerary-first-ballot-hall-of-famer/", "views": 9}
+    ]
+  },
+  "airtable": {
+    "new_leads_7d": 15,
+    "pipeline": {
+      "new": 4,
+      "quoted": 29,
+      "booked": 0,
+      "no_go": 0
+    },
+    "leads_needing_followup": [
+      {"name": "Sam Klassen", "status": "talked to/ quoted", "last_contact": "2026-02-24", "id": "rec03Da9JkhAbH7oU"},
+      {"name": "Jordan Elist", "status": "talked to/ quoted", "last_contact": "2026-01-06", "id": "rec2CySjgaPaqsgM4"},
+      {"name": "Stephen Napier", "status": "talked to/ quoted", "last_contact": "2026-01-19", "id": "rec5ZN8rpNOCToEj9"},
+      {"name": "Seth Walker", "status": "talked to/ quoted", "last_contact": "2026-01-30", "id": "rec5oxBUHzFZrZ1ug"},
+      {"name": "Bryson Hipkin", "status": "talked to/ quoted", "last_contact": "2026-02-12", "id": "rec5rvupr3mMNp6g4"},
+      {"name": "Dennis Joseph", "status": "talked to/ quoted", "last_contact": "2026-02-24", "id": "rec6QLGXHg6UWUA11"},
+      {"name": "Shaw Poetker", "status": "talked to/ quoted", "last_contact": "2026-02-23", "id": "rec8Ep2oyXzZdW9wd"},
+      {"name": "Kris Aarts", "status": "talked to/ quoted", "last_contact": "2026-02-19", "id": "recEKOCFMT3Xb1cNO"},
+      {"name": "Aatish Jamal", "status": "talked to/ quoted", "last_contact": "2026-02-16", "id": "recIR6epQqrw2DAHS"},
+      {"name": "Chris C", "status": "talked to/ quoted", "last_contact": "2026-01-26", "id": "recKAjL8BDlDJCnPp"}
+    ],
+    "new_requests": [
+      {"name": "Trish Villanueva", "doa": "2026-05-08", "people": 11, "id": "recEqgDkebGqpMezN"},
+      {"name": "John Atell", "doa": "2026-05-28", "people": 16, "id": "recSjYS9RHeF3O77X"},
+      {"name": "Bennett Kuruvilla", "doa": "2027-05-28", "people": 20, "id": "recVaP1p1vb7BARcu"},
+      {"name": "Rohit M", "doa": "2020-05-16", "people": 15, "id": "recgnpf0RiOJYTCjz"},
+      {"name": "Patrich Zulueta", "doa": "2026-06-04", "people": 14, "id": "recwkCS9VYG8En6S3"}
+    ],
+    "total_pipeline_value": 7495171.65
+  },
+  "insights": {
+    "issues": ["No critical issues detected"],
+    "opportunities": [
+      "Top ad landing page: /bachelor-party-a-v2/ (39 ad clicks)",
+      "29 leads currently in quoted stage — close them",
+      "$7,495,172 in active pipeline value"
+    ]
+  }
+};
+
+const PROPOSALS = {
+  "proposals": [
+    {
+      "id": "low-conversion-ad-landing-1",
+      "priority": "high",
+      "issue": "Ad landing page /bachelor-party-a-v2/ gets 39 clicks/week but only 15 new leads in 7 days (conversion rate ~12%)",
+      "solution": "A/B test landing page: social proof, improved headline, simplified CTA, FAQ section"
+    },
+    {
+      "id": "zero-closes-quoted-2",
+      "priority": "high",
+      "issue": "29 leads quoted, 0 booked. Quote-to-close rate is 0%.",
+      "solution": "Launch 'Close-the-Loop' sprint: follow-up template, Day 3 & 7 outreach, value-add upgrades"
+    },
+    {
+      "id": "followup-backlog-3",
+      "priority": "high",
+      "issue": "10 leads waiting for followup (4 overdue by 2+ weeks). Blocking pipeline movement.",
+      "solution": "Clear backlog this week: tier leads A/B/C, call overdue contacts, implement Day 7/14 auto-followup"
+    },
+    {
+      "id": "homepage-bounce-4",
+      "priority": "medium",
+      "issue": "Homepage dominates traffic (177 views) but 1% conversion rate suggests high bounce.",
+      "solution": "Redesign for depth: social proof section, testimonials, itinerary carousel, blog links"
+    },
+    {
+      "id": "seo-gap-5",
+      "priority": "medium",
+      "issue": "Direct traffic (244 sessions) vs Google (326) = weak organic ranking",
+      "solution": "SEO quick wins: schema markup, 3 blog posts, internal linking, Core Web Vitals audit"
+    }
+  ]
+};
+
+// Render functions
+function renderPipeline() {
+  const p = DAILY_REPORT.airtable.pipeline;
+  document.getElementById('pipeline-new').textContent = p.new;
+  document.getElementById('pipeline-quoted').textContent = p.quoted;
+  document.getElementById('pipeline-booked').textContent = p.booked;
+  document.getElementById('pipeline-nogo').textContent = p.no_go;
+  
+  const value = DAILY_REPORT.airtable.total_pipeline_value;
+  const formatted = '$' + (value / 1000000).toFixed(1) + 'M';
+  document.getElementById('pipeline-value').textContent = formatted;
+  
+  document.getElementById('new-leads-7d').textContent = DAILY_REPORT.airtable.new_leads_7d;
+  
+  const leads = DAILY_REPORT.airtable.leads_needing_followup;
+  document.getElementById('followup-count').textContent = leads.length;
+  
+  const today = new Date('2026-02-26');
+  const rows = document.getElementById('leads-list-rows');
+  rows.innerHTML = '';
+  
+  leads.forEach(lead => {
+    const lastContact = new Date(lead.last_contact);
+    const daysAgo = Math.floor((today - lastContact) / (1000 * 60 * 60 * 24));
+    let cssClass = '';
+    if (daysAgo <= 3) cssClass = 'very-recent';
+    else if (daysAgo <= 7) cssClass = 'recent';
+    
+    const row = document.createElement('div');
+    row.className = 'leads-list-row';
+    row.innerHTML = `
+      <div class="lead-name"><a href="https://airtable.com/appHT9Re4l53GO16t/tbl4P7tqdonXv5vcY/${lead.id}" target="_blank" style="color:#e0e0e0;text-decoration:none;">${lead.name}</a></div>
+      <div class="lead-status">quoted</div>
+      <div class="lead-days ${cssClass}">${daysAgo}d</div>
+    `;
+    rows.appendChild(row);
+  });
+}
+
+// Store full data for expandable lists
+let expandableData = {
+  sources: DAILY_REPORT.posthog.traffic_sources,
+  pages: DAILY_REPORT.posthog.top_pages,
+  adPages: DAILY_REPORT.posthog.ad_landing_pages
+};
+
+function renderNewRequests() {
+  const rows = document.getElementById('new-requests-rows');
+  if (!rows) return;
+  const requests = DAILY_REPORT.airtable.new_requests || [];
+  rows.innerHTML = requests.map(r => {
+    const d = new Date(r.doa);
+    const dateStr = d.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+    return `<div class="leads-list-row" style="grid-template-columns: 1fr 50px 70px;">
+      <div class="lead-name"><a href="https://airtable.com/appHT9Re4l53GO16t/tbl4P7tqdonXv5vcY/${r.id}" target="_blank" style="color:#4ade80;text-decoration:none;">${r.name}</a></div>
+      <div class="lead-status">${r.people} pax</div>
+      <div class="lead-days very-recent">${dateStr}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderTraffic() {
+  document.getElementById('total-pageviews').textContent = DAILY_REPORT.posthog.total_pageviews_7d;
+  document.getElementById('avg-pageviews').textContent = DAILY_REPORT.posthog.avg_daily_pageviews.toFixed(1);
+  
+  // Traffic sources - render all items but collapsed by default
+  const allSources = expandableData.sources;
+  const maxSessions = Math.max(...allSources.map(s => s.sessions));
+  const sourcesHtml = allSources.map(s => {
+    const displayName = s.source.replace('www.', '').replace('com.google.android.', 'Android ');
+    return `
+      <div class="source-row">
+        <div class="source-name">${displayName}</div>
+        <div class="source-count">${s.sessions}</div>
+      </div>
+    `;
+  }).join('');
+  document.getElementById('sources-list').innerHTML = sourcesHtml;
+  updateToggleText('sources-list');
+  
+  // Top pages - render all items but collapsed by default
+  const allPages = expandableData.pages;
+  const pagesHtml = allPages.map(p => {
+    const url = p.url.length > 35 ? p.url.substring(0, 32) + '…' : p.url;
+    return `
+      <div class="source-row">
+        <div class="source-name">${url}</div>
+        <div class="source-count">${p.views}</div>
+      </div>
+    `;
+  }).join('');
+  document.getElementById('top-pages-list').innerHTML = pagesHtml;
+  updateToggleText('top-pages-list');
+  
+  // Ad landing pages - render all items but collapsed by default
+  const allAdPages = expandableData.adPages;
+  const adHtml = allAdPages.map(p => {
+    const url = p.url.length > 35 ? p.url.substring(0, 32) + '…' : p.url;
+    return `
+      <div class="source-row">
+        <div class="source-name">${url}</div>
+        <div class="source-count">${p.views}</div>
+      </div>
+    `;
+  }).join('');
+  document.getElementById('ad-pages-list').innerHTML = adHtml;
+  updateToggleText('ad-pages-list');
+}
+
+function toggleList(listId) {
+  const listElement = document.getElementById(listId);
+  const isCollapsed = listElement.classList.contains('collapsed');
+  
+  if (isCollapsed) {
+    listElement.classList.remove('collapsed');
+    listElement.classList.add('expanded');
+  } else {
+    listElement.classList.remove('expanded');
+    listElement.classList.add('collapsed');
+  }
+  
+  updateToggleText(listId);
+}
+
+function updateToggleText(listId) {
+  const listElement = document.getElementById(listId);
+  const isCollapsed = listElement.classList.contains('collapsed');
+  const rowCount = listElement.querySelectorAll('.source-row').length;
+  
+  // Find the toggle button for this list
+  const toggleButton = listElement.closest('.sources-list').querySelector('.list-toggle');
+  const toggleText = toggleButton.querySelector('span:last-child');
+  const toggleIcon = toggleButton.querySelector('.toggle-icon');
+  
+  if (isCollapsed) {
+    toggleText.textContent = `Show more (${rowCount})`;
+    toggleIcon.textContent = '▼';
+  } else {
+    toggleText.textContent = 'Show less';
+    toggleIcon.textContent = '▲';
+  }
+}
+
+function renderInsights() {
+  // Opportunities
+  const oppsHtml = DAILY_REPORT.insights.opportunities.map(opp => {
+    return `
+      <div class="insight-card opportunity">
+        <div class="insight-text"><span class="insight-icon">✓</span> ${opp}</div>
+      </div>
+    `;
+  }).join('');
+  document.getElementById('opportunities-list').innerHTML = oppsHtml;
+  
+  // Issues
+  const issuesHtml = DAILY_REPORT.insights.issues.map(issue => {
+    const isAlert = issue === 'No critical issues detected' ? false : true;
+    const icon = isAlert ? '⚠️' : '✓';
+    const type = isAlert ? 'issue' : 'alert';
+    return `
+      <div class="insight-card ${type}">
+        <div class="insight-text"><span class="insight-icon">${icon}</span> ${issue}</div>
+      </div>
+    `;
+  }).join('');
+  document.getElementById('issues-list').innerHTML = issuesHtml;
+}
+
+function renderTimestamp() {
+  const dt = new Date('2026-02-26T13:31:17.332407');
+  const timeStr = dt.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+  document.getElementById('generated-time').textContent = timeStr;
+  
+  // "Last updated: Xm ago"
+  const now = new Date('2026-02-26T13:33:00');
+  const minsAgo = Math.floor((now - dt) / 60000);
+  document.getElementById('lastUpdatedTime').textContent = `Last updated: ${minsAgo}m ago`;
+}
+
+// PostHog API Configuration
+const POSTHOG_CONFIG = {
+  apiKey: 'phx_10r8mxfGxYI4gU863o057kfjjHrUPsiwpOipfPofxCRBV77P',
+  host: 'https://us.posthog.com',
+  projectId: '305689'
+};
+
+function getDateRange(range) {
+  const today = new Date();
+  const from = new Date(today);
+  
+  switch(range) {
+    case '1d':
+      from.setDate(from.getDate() - 1);
+      return { date_from: '-1d', date_to: null, interval: 'day', label: '(1d)' };
+    case '7d':
+      from.setDate(from.getDate() - 7);
+      return { date_from: '-7d', date_to: null, interval: 'day', label: '(7d)' };
+    case '30d':
+      from.setDate(from.getDate() - 30);
+      return { date_from: '-30d', date_to: null, interval: 'day', label: '(1M)' };
+    default:
+      return { date_from: '-7d', date_to: null, interval: 'day', label: '(7d)' };
+  }
+}
+
+function toggleCustomDateInput() {
+  const customInputs = document.getElementById('custom-date-inputs');
+  customInputs.classList.toggle('show');
+}
+
+async function fetchTrafficData(range) {
+  const errorDiv = document.getElementById('traffic-error');
+  errorDiv.classList.remove('show');
+  
+  // Update active button
+  document.querySelectorAll('.date-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelector(`[data-range="${range}"]`).classList.add('active');
+  
+  // Hide custom inputs if not custom
+  if (range !== 'custom') {
+    document.getElementById('custom-date-inputs').classList.remove('show');
+  }
+  
+  const dateRange = getDateRange(range);
+  document.getElementById('traffic-period').textContent = dateRange.label;
+  
+  // Show loading state
+  document.getElementById('total-pageviews').textContent = 'Loading...';
+  document.getElementById('avg-pageviews').textContent = '...';
+  
+  try {
+    // Fetch pageviews data
+    const pageviewsResponse = await fetch(`${POSTHOG_CONFIG.host}/api/projects/${POSTHOG_CONFIG.projectId}/insights/trend/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${POSTHOG_CONFIG.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        insight: 'TRENDS',
+        events: [{ id: '$pageview', type: 'events', math: 'total' }],
+        date_from: dateRange.date_from,
+        date_to: dateRange.date_to,
+        interval: dateRange.interval
+      })
+    });
+    
+    if (!pageviewsResponse.ok) {
+      throw new Error(`API error: ${pageviewsResponse.status}`);
+    }
+    
+    const pageviewsData = await pageviewsResponse.json();
+    
+    // Calculate totals
+    let totalPageviews = 0;
+    let dayCount = 0;
+    
+    if (pageviewsData.results && pageviewsData.results.length > 0) {
+      const series = pageviewsData.results[0].data;
+      if (Array.isArray(series)) {
+        series.forEach(point => {
+          if (typeof point === 'object' && point.count) {
+            totalPageviews += point.count;
+            dayCount += 1;
+          }
+        });
+      }
+    }
+    
+    const avgPageviews = dayCount > 0 ? (totalPageviews / dayCount).toFixed(1) : 0;
+    
+    // Update UI
+    document.getElementById('total-pageviews').textContent = totalPageviews || '0';
+    document.getElementById('avg-pageviews').textContent = avgPageviews;
+    
+    // Fetch top pages
+    fetchTopPages(dateRange.date_from);
+    
+    // Fetch traffic sources
+    fetchTrafficSources(dateRange.date_from);
+    
+  } catch (error) {
+    console.error('Traffic data fetch error:', error);
+    errorDiv.textContent = `Error loading traffic data: ${error.message}`;
+    errorDiv.classList.add('show');
+    document.getElementById('total-pageviews').textContent = '—';
+    document.getElementById('avg-pageviews').textContent = '—';
+  }
+}
+
+async function fetchTopPages(dateFrom) {
+  try {
+    const response = await fetch(`${POSTHOG_CONFIG.host}/api/projects/${POSTHOG_CONFIG.projectId}/insights/trend/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${POSTHOG_CONFIG.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        insight: 'TRENDS',
+        events: [{ id: '$pageview', type: 'events', math: 'total' }],
+        breakdown: '$current_url',
+        breakdown_type: 'event',
+        date_from: dateFrom
+      })
+    });
+    
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
+    
+    const data = await response.json();
+    
+    // Parse results
+    let pages = [];
+    if (data.results && Array.isArray(data.results)) {
+      pages = data.results.map(item => ({
+        url: item.breakdown_value || item.label || 'unknown',
+        views: item.count || 0
+      })).sort((a, b) => b.views - a.views);
+    }
+    
+    expandableData.pages = pages;
+    
+    // Re-render pages list
+    const allPages = expandableData.pages;
+    const pagesHtml = allPages.map(p => {
+      const url = p.url.length > 35 ? p.url.substring(0, 32) + '…' : p.url;
+      return `
+        <div class="source-row">
+          <div class="source-name">${url}</div>
+          <div class="source-count">${p.views}</div>
+        </div>
+      `;
+    }).join('');
+    document.getElementById('top-pages-list').innerHTML = pagesHtml;
+    updateToggleText('top-pages-list');
+    
+  } catch (error) {
+    console.error('Top pages fetch error:', error);
+  }
+}
+
+async function fetchTrafficSources(dateFrom) {
+  try {
+    const response = await fetch(`${POSTHOG_CONFIG.host}/api/projects/${POSTHOG_CONFIG.projectId}/insights/trend/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${POSTHOG_CONFIG.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        insight: 'TRENDS',
+        events: [{ id: '$pageview', type: 'events', math: 'total' }],
+        breakdown: '$referring_domain',
+        breakdown_type: 'event',
+        date_from: dateFrom
+      })
+    });
+    
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
+    
+    const data = await response.json();
+    
+    // Parse results
+    let sources = [];
+    if (data.results && Array.isArray(data.results)) {
+      sources = data.results.map(item => ({
+        source: item.breakdown_value || item.label || 'unknown',
+        sessions: item.count || 0
+      })).sort((a, b) => b.sessions - a.sessions);
+    }
+    
+    expandableData.sources = sources;
+    
+    // Re-render sources list
+    const allSources = expandableData.sources;
+    const sourcesHtml = allSources.map(s => {
+      const displayName = s.source.replace('www.', '').replace('com.google.android.', 'Android ');
+      return `
+        <div class="source-row">
+          <div class="source-name">${displayName}</div>
+          <div class="source-count">${s.sessions}</div>
+        </div>
+      `;
+    }).join('');
+    document.getElementById('sources-list').innerHTML = sourcesHtml;
+    updateToggleText('sources-list');
+    
+  } catch (error) {
+    console.error('Traffic sources fetch error:', error);
+  }
+}
+
+function fetchTrafficDataCustom() {
+  const fromInput = document.getElementById('custom-from').value;
+  const toInput = document.getElementById('custom-to').value;
+  
+  if (!fromInput || !toInput) {
+    alert('Please enter both from and to dates');
+    return;
+  }
+  
+  const errorDiv = document.getElementById('traffic-error');
+  errorDiv.classList.remove('show');
+  
+  // Update active button
+  document.querySelectorAll('.date-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelector('[data-range="custom"]').classList.add('active');
+  
+  document.getElementById('traffic-period').textContent = `(${fromInput} to ${toInput})`;
+  
+  // Show loading state
+  document.getElementById('total-pageviews').textContent = 'Loading...';
+  document.getElementById('avg-pageviews').textContent = '...';
+  
+  // Fetch with custom dates
+  fetchTrafficDataWithDates(fromInput, toInput);
+}
+
+async function fetchTrafficDataWithDates(dateFrom, dateTo) {
+  try {
+    const pageviewsResponse = await fetch(`${POSTHOG_CONFIG.host}/api/projects/${POSTHOG_CONFIG.projectId}/insights/trend/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${POSTHOG_CONFIG.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        insight: 'TRENDS',
+        events: [{ id: '$pageview', type: 'events', math: 'total' }],
+        date_from: dateFrom,
+        date_to: dateTo,
+        interval: 'day'
+      })
+    });
+    
+    if (!pageviewsResponse.ok) {
+      throw new Error(`API error: ${pageviewsResponse.status}`);
+    }
+    
+    const pageviewsData = await pageviewsResponse.json();
+    
+    // Calculate totals
+    let totalPageviews = 0;
+    let dayCount = 0;
+    
+    if (pageviewsData.results && pageviewsData.results.length > 0) {
+      const series = pageviewsData.results[0].data;
+      if (Array.isArray(series)) {
+        series.forEach(point => {
+          if (typeof point === 'object' && point.count) {
+            totalPageviews += point.count;
+            dayCount += 1;
+          }
+        });
+      }
+    }
+    
+    const avgPageviews = dayCount > 0 ? (totalPageviews / dayCount).toFixed(1) : 0;
+    
+    document.getElementById('total-pageviews').textContent = totalPageviews || '0';
+    document.getElementById('avg-pageviews').textContent = avgPageviews;
+    
+    // Fetch related data
+    fetchTopPages(dateFrom);
+    fetchTrafficSources(dateFrom);
+    
+  } catch (error) {
+    const errorDiv = document.getElementById('traffic-error');
+    errorDiv.textContent = `Error loading traffic data: ${error.message}`;
+    errorDiv.classList.add('show');
+    document.getElementById('total-pageviews').textContent = '—';
+    document.getElementById('avg-pageviews').textContent = '—';
+  }
+}
+
+function toggleProposals() {
+  const proposalsList = document.getElementById('proposals-list');
+  const toggleIcon = document.getElementById('proposals-toggle-icon');
+  
+  if (proposalsList.classList.contains('show')) {
+    proposalsList.classList.remove('show');
+    toggleIcon.textContent = '▼ Show';
+  } else {
+    proposalsList.classList.add('show');
+    toggleIcon.textContent = '▲ Hide';
+  }
+}
+
+function renderProposals() {
+  const proposalsList = document.getElementById('proposals-list');
+  const count = PROPOSALS.proposals.length;
+  document.getElementById('proposals-count').textContent = count;
+  
+  const proposalsHtml = PROPOSALS.proposals.map(proposal => {
+    const priorityClass = proposal.priority.toLowerCase();
+    const issueTruncated = proposal.issue.length > 80 ? proposal.issue.substring(0, 77) + '…' : proposal.issue;
+    
+    return `
+      <div class="proposal-card ${priorityClass}">
+        <div class="proposal-header">
+          <div class="proposal-priority ${priorityClass}">${proposal.priority}</div>
+        </div>
+        <div class="proposal-issue">${issueTruncated}</div>
+        <div class="proposal-action">
+          <button class="proposal-btn" onclick="openProposalDetail('${proposal.id}', '${proposal.priority.toUpperCase()}', '${proposal.issue.replace(/'/g, "\\'")}', '${proposal.solution.replace(/'/g, "\\'")}')">Open →</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  proposalsList.innerHTML = proposalsHtml;
+}
+
+function openProposalDetail(id, priority, issue, solution) {
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Proposal Details</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0a0a0f; color: #e0e0e0;
+      font-family: 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
+      padding: 20px; line-height: 1.6;
+    }
+    .container {
+      max-width: 700px; margin: 0 auto;
+    }
+    .header {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+    }
+    .close-btn {
+      background: #1e1e2e; color: #999; border: 1px solid #2a2a4a;
+      padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;
+      font-family: inherit; transition: all .2s;
+    }
+    .close-btn:hover {
+      background: #2a2a4a; border-color: #333; color: #fff;
+    }
+    .priority-badge {
+      display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 10px;
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .priority-badge.HIGH {
+      background: rgba(204,0,0,.2); color: #ff6b6b;
+    }
+    .priority-badge.MEDIUM {
+      background: rgba(251,191,36,.2); color: #fbbf24;
+    }
+    .section {
+      margin-bottom: 24px;
+    }
+    .section-title {
+      font-size: 12px; font-weight: 700; text-transform: uppercase; color: #888;
+      letter-spacing: 1px; margin-bottom: 10px;
+    }
+    .section-content {
+      background: #111118; border: 1px solid #1e1e2e; border-radius: 6px;
+      padding: 14px; font-size: 13px; line-height: 1.5; color: #ccc;
+    }
+    .actions {
+      display: flex; gap: 8px; margin-top: 20px;
+    }
+    .action-btn {
+      flex: 1; padding: 12px 16px; border-radius: 6px; font-size: 12px;
+      font-weight: 600; cursor: pointer; font-family: inherit; transition: all .2s;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .approve-btn {
+      background: #22c55e; color: #000; border: none;
+    }
+    .approve-btn:hover {
+      background: #4ade80; box-shadow: 0 0 12px rgba(34,197,94,.3);
+    }
+    .dismiss-btn {
+      background: #1e1e2e; color: #888; border: 1px solid #2a2a4a;
+    }
+    .dismiss-btn:hover {
+      background: #2a2a4a; border-color: #333; color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <span class="priority-badge ${priority}">${priority}</span>
+      <button class="close-btn" onclick="window.close()">✕ Close</button>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Issue</div>
+      <div class="section-content">${issue}</div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Recommended Solution</div>
+      <div class="section-content">${solution}</div>
+    </div>
+    
+    <div class="actions">
+      <button class="action-btn approve-btn" onclick="alert('✓ Proposal approved! (placeholder)'); window.close();">✓ Approve & Implement</button>
+      <button class="action-btn dismiss-btn" onclick="alert('✕ Proposal dismissed (placeholder)'); window.close();">✕ Dismiss</button>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+  
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  window.open(url, 'proposal_detail', 'width=800,height=600,menubar=no,toolbar=no,status=no');
+}
+
+// Initialize
+renderPipeline();
+renderNewRequests();
+renderTraffic();
+renderInsights();
+renderTimestamp();
+renderProposals();
+</script>
+
+<!-- Chat Panel -->
+<style>
+#chat-toggle{position:fixed;right:0;top:50%;transform:translateY(-50%);background:#22c55e;color:#000;border:none;padding:10px 6px;cursor:pointer;font-size:12px;font-weight:700;writing-mode:vertical-rl;border-radius:4px 0 0 4px;z-index:1000;}
+#chat-panel{position:fixed;right:-340px;top:0;width:340px;height:100vh;background:#111118;border-left:1px solid #1e1e2e;display:flex;flex-direction:column;z-index:999;transition:right .3s;font-family:'SF Mono',monospace;}
+#chat-panel.open{right:0;}
+#chat-header{padding:12px;border-bottom:1px solid #1e1e2e;display:flex;gap:8px;align-items:center;}
+#chat-header span{color:#fff;font-size:13px;font-weight:700;flex:1;}
+.mode-btn{padding:4px 8px;border:1px solid #333;background:transparent;color:#888;font-size:10px;cursor:pointer;border-radius:3px;}
+.mode-btn.active{background:#22c55e;color:#000;border-color:#22c55e;}
+#chat-messages{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;}
+.msg{padding:8px 10px;border-radius:4px;font-size:11px;line-height:1.5;max-width:100%;word-wrap:break-word;}
+.msg.user{background:#1e1e2e;color:#e0e0e0;align-self:flex-end;}
+.msg.ai{background:#0a1a0a;color:#4ade80;border:1px solid #1a3a1a;}
+.msg.error{background:#1a0a0a;color:#f87171;border:1px solid #3a1a1a;}
+#chat-input-area{padding:10px;border-top:1px solid #1e1e2e;display:flex;flex-direction:column;gap:6px;}
+#chat-input{width:100%;background:#0a0a0f;border:1px solid #333;color:#e0e0e0;padding:8px;font-size:11px;font-family:inherit;border-radius:3px;resize:none;height:60px;}
+#chat-input:focus{outline:none;border-color:#22c55e;}
+.chat-actions{display:flex;gap:6px;}
+#chat-send{flex:1;background:#22c55e;color:#000;border:none;padding:6px;cursor:pointer;font-size:11px;font-weight:700;border-radius:3px;}
+#chat-refresh{background:transparent;border:1px solid #333;color:#888;padding:6px 8px;cursor:pointer;font-size:11px;border-radius:3px;}
+#chat-offline{display:none;padding:8px 12px;background:#1a0a0a;color:#f87171;font-size:10px;border-bottom:1px solid #3a1a1a;}
+</style>
+
+<button id="chat-toggle" onclick="document.getElementById('chat-panel').classList.toggle('open')">💬 Chat</button>
+<div id="chat-panel">
+  <div id="chat-offline">⚠️ Server offline — run: cd ~/Projects/connected-montreal-ai && ./start.sh</div>
+  <div id="chat-header">
+    <span>🎯 AI Assistant</span>
+    <button class="mode-btn active" id="btn-ollama" onclick="setMode('ollama')">🦙 Ollama</button>
+    <button class="mode-btn" id="btn-openclaw" onclick="setMode('openclaw')">🤖 OpenClaw</button>
+  </div>
+  <div id="chat-messages"></div>
+  <div id="chat-input-area">
+    <textarea id="chat-input" placeholder="Ask about leads, traffic, pipeline..."></textarea>
+    <div class="chat-actions">
+      <button id="chat-refresh" onclick="refreshData()" title="Refresh live data">🔄 Refresh</button>
+      <button id="chat-send" onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var mode = 'ollama';
+  var history = [];
+  var BASE = 'http://localhost:5050';
+
+  function setMode(m){
+    mode = m;
+    document.getElementById('btn-ollama').classList.toggle('active', m==='ollama');
+    document.getElementById('btn-openclaw').classList.toggle('active', m==='openclaw');
+  }
+  window.setMode = setMode;
+
+  function addMsg(role, text){
+    var div = document.createElement('div');
+    div.className = 'msg ' + role;
+    div.textContent = text;
+    var msgs = document.getElementById('chat-messages');
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return div;
+  }
+
+  function refreshData(){
+    fetch(BASE+'/api/refresh', {method:'POST'})
+      .then(r=>r.json()).then(d=>{
+        addMsg('ai','✅ Data refreshed. Pageviews: '+(d.pageviews_7d||'?')+', Pipeline: '+JSON.stringify(d.pipeline||{}));
+      }).catch(()=>addMsg('error','❌ Could not reach server'));
+  }
+  window.refreshData = refreshData;
+
+  async function sendMessage(){
+    var input = document.getElementById('chat-input');
+    var msg = input.value.trim();
+    if(!msg) return;
+    input.value = '';
+    addMsg('user', msg);
+    var thinking = addMsg('ai','...');
+    var endpoint = mode==='ollama' ? '/api/chat' : '/api/ask-openclaw';
+    var body = mode==='ollama' ? {message:msg, history:history} : {message:msg};
+    try {
+      var r = await fetch(BASE+endpoint, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+      var data = await r.json();
+      var resp = data.response || data.error || 'No response';
+      thinking.textContent = resp;
+      thinking.className = data.error ? 'msg error' : 'msg ai';
+      if(!data.error && mode==='ollama'){
+        history.push({role:'user',content:msg});
+        history.push({role:'assistant',content:resp});
+        if(history.length > 20) history = history.slice(-20);
+      }
+    } catch(e){
+      thinking.textContent = '❌ Server offline — run ./start.sh';
+      thinking.className = 'msg error';
+    }
+  }
+  window.sendMessage = sendMessage;
+
+  document.getElementById('chat-input').addEventListener('keydown', function(e){
+    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); }
+  });
+
+  // Check server on load
+  fetch(BASE+'/api/data').then(r=>r.json()).then(d=>{
+    document.getElementById('chat-offline').style.display='none';
+  }).catch(()=>{
+    document.getElementById('chat-offline').style.display='block';
+  });
+})();
+</script>
+
+</body>
+</html>
