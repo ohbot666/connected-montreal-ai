@@ -141,7 +141,7 @@ LIVE DATA:
     # Try Ollama (local only)
     try:
         r = requests.post("http://localhost:11434/api/chat",
-            json={"model": "gemma3:4b", "messages": messages, "stream": False}, timeout=10)
+            json={"model": "gemma3:4b", "messages": messages, "stream": False}, timeout=90)
         resp = r.json().get("message", {}).get("content", "")
         if resp:
             return jsonify({"response": resp})
