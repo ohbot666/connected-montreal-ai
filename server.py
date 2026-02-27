@@ -169,6 +169,41 @@ def api_refresh():
     _cache["ts"] = 0
     return jsonify(fetch_live_data())
 
+
+@app.route("/api/send-sms", methods=["POST"])
+def api_send_sms():
+    body = request.json or {}
+    to = body.get("to", "").strip()
+    message = body.get("message", "").strip()
+    if not to or not message:
+        return jsonify({"ok": False, "error": "Missing to or message"}), 400
+    # Get BlueBubbles server URL from config DB
+    try:
+        import sqlite3
+        conn = sqlite3.connect('/Applications/BlueBubbles.app/Contents/Resources/config.db')
+        cur = conn.cursor()
+        cur.execute("SELECT value FROM config WHERE name='server_address'")
+        row = cur.fetchone()
+        conn.close()
+        bb_url = row[0].rstrip('/') if row else None
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"BlueBubbles config error: {e}"}), 500
+    if not bb_url:
+        return jsonify({"ok": False, "error": "BlueBubbles URL not found"}), 500
+    try:
+        import uuid
+        r = requests.post(f"{bb_url}/api/v1/message/text",
+            headers={"Content-Type": "application/json"},
+            json={"chatGuid": f"SMS;-;{to}", "message": message,
+                  "method": "private-api", "tempGuid": str(uuid.uuid4())},
+            timeout=15)
+        if r.ok:
+            return jsonify({"ok": True})
+        else:
+            return jsonify({"ok": False, "error": r.text}), 500
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
 # Warm cache from disk on startup
 try:
     if CACHE_FILE.exists():

@@ -823,16 +823,29 @@ function renderLeads(leads) {
       else timeAgo = `${Math.floor(diffDays/30)} months ago`;
     }
     
+    const phone = lead.phone || '';
+    const defaultMsg = `Hey ${lead.first_name}! Got your request let me know when you\'re free to talk about the trip.`;
     return `
-      <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 12px; margin-bottom: 8px; cursor: pointer; transition: all .2s;" class="lead-card" onclick="window.open('https://airtable.com/appHT9Re4l53GO16t/tbl4P7tqdonXv5vcY/${lead.id}', '_blank')">
-        <div style="font-weight: 700; color: #fff; margin-bottom: 6px; font-size: 13px;">${name}</div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px; color: #aaa; margin-bottom: 6px;">
-          <div>📅 <span style="color: #4ade80;">${doa}</span></div>
-          <div>👥 <span style="color: #4ade80;">${people}</span></div>
+      <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 12px; margin-bottom: 8px;" class="lead-card">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+          <div style="font-weight:700; color:#fff; font-size:13px; cursor:pointer;" onclick="window.open('https://airtable.com/appHT9Re4l53GO16t/tbl4P7tqdonXv5vcY/${lead.id}','_blank')">${name}</div>
+          <button onclick="toggleSMS('${lead.id}')" title="Send SMS" style="background:none;border:none;cursor:pointer;font-size:16px;padding:2px 4px;line-height:1;">💬</button>
         </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px; color: #888;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11px; color:#aaa; margin-bottom:6px;">
+          <div>📅 <span style="color:#4ade80;">${doa}</span></div>
+          <div>👥 <span style="color:#4ade80;">${people}</span></div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11px; color:#888;">
           <div>📋 ${source}</div>
           <div>⏰ ${timeAgo}</div>
+        </div>
+        <div id="sms-${lead.id}" style="display:none; margin-top:10px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px;">
+          <textarea id="sms-text-${lead.id}" style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:#fff;padding:8px;font-size:12px;resize:vertical;min-height:60px;">${defaultMsg}</textarea>
+          <div style="display:flex;gap:8px;margin-top:6px;align-items:center;">
+            <button onclick="sendSMS('${lead.id}','${phone}')" style="background:#4ade80;border:none;border-radius:4px;color:#000;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;">Send SMS</button>
+            <button onclick="toggleSMS('${lead.id}')" style="background:rgba(255,255,255,0.1);border:none;border-radius:4px;color:#fff;padding:6px 12px;font-size:11px;cursor:pointer;">Cancel</button>
+            <span id="sms-status-${lead.id}" style="font-size:11px;color:#aaa;"></span>
+          </div>
         </div>
       </div>
     `;
@@ -870,6 +883,35 @@ function renderLeads(leads) {
       `;
     }).join('');
     followupsContainer.innerHTML = followHtml || '<div style="color:#666;font-size:12px">No follow-ups pending</div>';
+  }
+}
+
+
+function toggleSMS(id) {
+  const el = document.getElementById('sms-' + id);
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function sendSMS(id, phone) {
+  const msg = document.getElementById('sms-text-' + id).value;
+  const status = document.getElementById('sms-status-' + id);
+  if (!phone) { status.textContent = '❌ No phone number'; status.style.color='#ff6b6b'; return; }
+  status.textContent = 'Sending...'; status.style.color = '#aaa';
+  try {
+    const r = await fetch('/api/send-sms', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({to: phone, message: msg})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      status.textContent = '✅ Sent!'; status.style.color = '#4ade80';
+      setTimeout(() => toggleSMS(id), 2000);
+    } else {
+      status.textContent = '❌ ' + (d.error || 'Failed'); status.style.color = '#ff6b6b';
+    }
+  } catch(e) {
+    status.textContent = '❌ Network error'; status.style.color = '#ff6b6b';
   }
 }
 
