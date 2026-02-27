@@ -41,11 +41,16 @@ def fetch_live_data():
     try:
         if AIRTABLE_TOKEN:
             headers = {"Authorization": f"Bearer {AIRTABLE_TOKEN}"}
-            # Paginate through all records
+            # Fetch only active statuses — skip No Go (530+ records we don't need)
+            ACTIVE_FILTER = "OR({Status}='New Request',{Status}='talked to/ quoted',{Status}='Booked')"
+            FIELDS = ["First Name","Last Name","Status","DOA","People","Created On",
+                      "Source of lead","Phone","Email","Tell us what you have in mind?","Contact Type"]
             all_records = []
             offset = None
             while True:
-                params = {"pageSize": 100}
+                params = {"pageSize": 100, "filterByFormula": ACTIVE_FILTER}
+                for field in FIELDS:
+                    params.setdefault("fields[]", []).append(field)
                 if offset:
                     params["offset"] = offset
                 r = requests.get(f"https://api.airtable.com/v0/{AIRTABLE_BASE}/{AIRTABLE_TABLE}",

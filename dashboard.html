@@ -841,6 +841,36 @@ function renderLeads(leads) {
   if (html) {
     newRequestsContainer.innerHTML = html;
   }
+
+  // Follow-ups Needed — "talked to/ quoted"
+  const followupsContainer = document.getElementById('leads-list-rows');
+  if (followupsContainer) {
+    const followups = leads.filter(lead => lead.status === 'talked to/ quoted');
+    document.getElementById('followup-count').textContent = followups.length;
+
+    const followHtml = followups.map(lead => {
+      const name = `${lead.first_name} ${lead.last_name}`.trim();
+      const doa = lead.doa ? new Date(lead.doa).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}) : 'TBD';
+      const people = lead.people ? `${lead.people}p` : '?';
+      const created = lead.created_on ? new Date(lead.created_on) : null;
+      let daysAgo = '?';
+      if (created) {
+        const diff = Math.floor((new Date() - created) / (1000*60*60*24));
+        daysAgo = diff === 0 ? 'today' : diff === 1 ? '1d' : `${diff}d`;
+      }
+      return `
+        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,107,107,0.2); border-radius: 6px; padding: 10px; margin-bottom: 6px; cursor: pointer;" onclick="window.open('https://airtable.com/appHT9Re4l53GO16t/tbl4P7tqdonXv5vcY/${lead.id}', '_blank')">
+          <div style="font-weight:700; color:#fff; font-size:13px; margin-bottom:4px;">${name}</div>
+          <div style="display:flex; gap:10px; font-size:11px; color:#aaa;">
+            <span>📅 <span style="color:#4ade80">${doa}</span></span>
+            <span>👥 ${people}</span>
+            <span style="color:#ff6b6b">⏰ ${daysAgo}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+    followupsContainer.innerHTML = followHtml || '<div style="color:#666;font-size:12px">No follow-ups pending</div>';
+  }
 }
 
 function renderTraffic() {
