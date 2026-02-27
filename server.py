@@ -57,6 +57,7 @@ def fetch_live_data():
                 offset = d.get("offset")
                 if not offset:
                     break
+            
             pipeline = {"new": 0, "quoted": 0, "booked": 0, "no_go": 0}
             status_map = {
                 "New Request": "new",
@@ -68,12 +69,33 @@ def fetch_live_data():
                 "No Go - Not Coming to Town": "no_go",
             }
             main_contacts = [r for r in all_records if r.get("fields", {}).get("Contact Type") == "Party Main Contact"]
+            
+            # Extract full lead details
+            leads = []
             for rec in main_contacts:
-                s = rec.get("fields", {}).get("Status", "")
-                bucket = status_map.get(s)
+                fields = rec.get("fields", {})
+                status = fields.get("Status", "")
+                bucket = status_map.get(status)
                 if bucket:
                     pipeline[bucket] += 1
+                
+                lead = {
+                    "id": rec.get("id", ""),
+                    "first_name": fields.get("First Name", ""),
+                    "last_name": fields.get("Last Name", ""),
+                    "status": status,
+                    "doa": fields.get("DOA", ""),
+                    "people": fields.get("People", ""),
+                    "created_on": fields.get("Created On", ""),
+                    "source": fields.get("Source of lead", ""),
+                    "phone": fields.get("Phone", ""),
+                    "email": fields.get("Email", ""),
+                    "notes": fields.get("Tell us what you have in mind?", "")
+                }
+                leads.append(lead)
+            
             data["pipeline"] = pipeline
+            data["leads"] = leads
             data["total_leads"] = len(main_contacts)
     except Exception as e:
         data["airtable_error"] = str(e)

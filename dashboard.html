@@ -788,6 +788,61 @@ function renderNewRequests() {
   }).join('');
 }
 
+// Render lead cards from API data
+function renderLeads(leads) {
+  const newRequestsContainer = document.getElementById('new-requests-rows');
+  if (!newRequestsContainer || !leads) return;
+  
+  // Filter leads by status "New Request"
+  const newRequests = leads.filter(lead => lead.status === "New Request");
+  
+  // Update the count
+  const countDiv = newRequestsContainer.parentElement.querySelector('[style*="rgba(34,197,94"]');
+  if (countDiv) {
+    countDiv.querySelector('[style*="font-size: 16px"]').textContent = newRequests.length;
+  }
+  
+  // Render lead cards
+  const html = newRequests.map(lead => {
+    const name = `${lead.first_name} ${lead.last_name}`.trim();
+    const doa = lead.doa ? new Date(lead.doa).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}) : 'TBD';
+    const people = lead.people ? `${lead.people} people` : 'TBD';
+    const source = lead.source || 'Unknown';
+    
+    // Calculate time since created
+    const created = lead.created_on ? new Date(lead.created_on) : null;
+    let timeAgo = 'recently';
+    if (created) {
+      const now = new Date();
+      const diffMs = now - created;
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      if (diffDays === 0) timeAgo = 'today';
+      else if (diffDays === 1) timeAgo = 'yesterday';
+      else if (diffDays < 7) timeAgo = `${diffDays} days ago`;
+      else if (diffDays < 30) timeAgo = `${Math.floor(diffDays/7)} weeks ago`;
+      else timeAgo = `${Math.floor(diffDays/30)} months ago`;
+    }
+    
+    return `
+      <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 12px; margin-bottom: 8px; cursor: pointer; transition: all .2s;" class="lead-card" onclick="window.open('https://airtable.com/appHT9Re4l53GO16t/tbl4P7tqdonXv5vcY/${lead.id}', '_blank')">
+        <div style="font-weight: 700; color: #fff; margin-bottom: 6px; font-size: 13px;">${name}</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px; color: #aaa; margin-bottom: 6px;">
+          <div>📅 <span style="color: #4ade80;">${doa}</span></div>
+          <div>👥 <span style="color: #4ade80;">${people}</span></div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px; color: #888;">
+          <div>📋 ${source}</div>
+          <div>⏰ ${timeAgo}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  if (html) {
+    newRequestsContainer.innerHTML = html;
+  }
+}
+
 function renderTraffic() {
   document.getElementById('total-pageviews').textContent = DAILY_REPORT.posthog.total_pageviews_7d;
   document.getElementById('avg-pageviews').textContent = DAILY_REPORT.posthog.avg_daily_pageviews.toFixed(1);
@@ -1343,6 +1398,31 @@ function openProposalDetail(id, priority, issue, solution) {
   window.open(url, 'proposal_detail', 'width=800,height=600,menubar=no,toolbar=no,status=no');
 }
 
+// Fetch live data from API
+async function fetchLiveData() {
+  try {
+    const response = await fetch('/api/data');
+    const data = await response.json();
+    
+    // Update pipeline counts if available
+    if (data.pipeline) {
+      document.getElementById('pipeline-new').textContent = data.pipeline.new || '0';
+      document.getElementById('pipeline-quoted').textContent = data.pipeline.quoted || '0';
+      document.getElementById('pipeline-booked').textContent = data.pipeline.booked || '0';
+      document.getElementById('pipeline-nogo').textContent = data.pipeline.no_go || '0';
+    }
+    
+    // Render lead cards from real data
+    if (data.leads && Array.isArray(data.leads)) {
+      renderLeads(data.leads);
+    }
+  } catch (error) {
+    console.error('Error fetching live data:', error);
+    // Fall back to embedded data
+    renderNewRequests();
+  }
+}
+
 // Initialize
 renderPipeline();
 renderNewRequests();
@@ -1350,6 +1430,12 @@ renderTraffic();
 renderInsights();
 renderTimestamp();
 renderProposals();
+
+// Fetch and render live lead data
+fetchLiveData();
+
+// Refresh live data every 5 minutes
+setInterval(fetchLiveData, 300000);
 </script>
 
 <!-- Chat Panel -->
