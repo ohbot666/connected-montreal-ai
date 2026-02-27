@@ -23,7 +23,8 @@ AIRTABLE_TABLE  = os.environ.get("AIRTABLE_TABLE", "tbl4P7tqdonXv5vcY")
 DASHBOARD_PATH = Path(__file__).parent / "dashboard.html"
 
 _cache = {"data": None, "ts": 0}
-CACHE_TTL = 300  # 5 min
+CACHE_FILE = Path(__file__).parent / ".cache.json"
+CACHE_TTL = 1800  # 30 min
 
 def fetch_live_data():
     now = time.time()
@@ -111,6 +112,10 @@ def fetch_live_data():
         data["airtable_error"] = str(e)
     _cache["data"] = data
     _cache["ts"] = now
+    try:
+        CACHE_FILE.write_text(json.dumps({"data": data, "ts": now}))
+    except Exception:
+        pass
     return data
 
 @app.route("/")
@@ -163,6 +168,15 @@ def api_ask_openclaw():
 def api_refresh():
     _cache["ts"] = 0
     return jsonify(fetch_live_data())
+
+# Warm cache from disk on startup
+try:
+    if CACHE_FILE.exists():
+        saved = json.loads(CACHE_FILE.read_text())
+        _cache["data"] = saved.get("data")
+        _cache["ts"] = saved.get("ts", 0)
+except Exception:
+    pass
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5050))
