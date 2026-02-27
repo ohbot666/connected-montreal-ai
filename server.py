@@ -179,13 +179,15 @@ def api_send_sms():
         return jsonify({"ok": False, "error": "Missing to or message"}), 400
     # Get BlueBubbles server URL from config DB
     try:
-        import sqlite3
-        conn = sqlite3.connect('/Applications/BlueBubbles.app/Contents/Resources/config.db')
+        import sqlite3, os
+        db_path = os.path.expanduser('~/Library/Application Support/bluebubbles-server/config.db')
+        conn = sqlite3.connect(db_path)
         cur = conn.cursor()
-        cur.execute("SELECT value FROM config WHERE name='server_address'")
-        row = cur.fetchone()
+        cur.execute("SELECT name, value FROM config WHERE name IN ('server_address','password')")
+        rows = {r[0]: r[1] for r in cur.fetchall()}
         conn.close()
-        bb_url = row[0].rstrip('/') if row else None
+        bb_url = rows.get('server_address', '').rstrip('/')
+        bb_pass = rows.get('password', '')
     except Exception as e:
         return jsonify({"ok": False, "error": f"BlueBubbles config error: {e}"}), 500
     if not bb_url:
@@ -195,7 +197,8 @@ def api_send_sms():
         r = requests.post(f"{bb_url}/api/v1/message/text",
             headers={"Content-Type": "application/json"},
             json={"chatGuid": f"SMS;-;{to}", "message": message,
-                  "method": "private-api", "tempGuid": str(uuid.uuid4())},
+                  "method": "private-api", "tempGuid": str(uuid.uuid4()),
+                  "password": bb_pass},
             timeout=15)
         if r.ok:
             return jsonify({"ok": True})
