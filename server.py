@@ -41,18 +41,40 @@ def fetch_live_data():
     try:
         if AIRTABLE_TOKEN:
             headers = {"Authorization": f"Bearer {AIRTABLE_TOKEN}"}
-            r = requests.get(f"https://api.airtable.com/v0/{AIRTABLE_BASE}/{AIRTABLE_TABLE}",
-                headers=headers, params={"pageSize": 100}, timeout=10)
-            records = r.json().get("records", []) if r.ok else []
+            # Paginate through all records
+            all_records = []
+            offset = None
+            while True:
+                params = {"pageSize": 100}
+                if offset:
+                    params["offset"] = offset
+                r = requests.get(f"https://api.airtable.com/v0/{AIRTABLE_BASE}/{AIRTABLE_TABLE}",
+                    headers=headers, params=params, timeout=30)
+                if not r.ok:
+                    break
+                d = r.json()
+                all_records.extend(d.get("records", []))
+                offset = d.get("offset")
+                if not offset:
+                    break
             pipeline = {"new": 0, "quoted": 0, "booked": 0, "no_go": 0}
-            status_map = {"New Request": "new", "talked to/ quoted": "quoted", "Booked": "booked", "No Go": "no_go"}
-            for rec in records:
+            status_map = {
+                "New Request": "new",
+                "talked to/ quoted": "quoted",
+                "Booked - Deposit": "booked",
+                "Booked": "booked",
+                "No Go": "no_go",
+                "No Go - Coming to Town": "no_go",
+                "No Go - Not Coming to Town": "no_go",
+            }
+            main_contacts = [r for r in all_records if r.get("fields", {}).get("Contact Type") == "Party Main Contact"]
+            for rec in main_contacts:
                 s = rec.get("fields", {}).get("Status", "")
                 bucket = status_map.get(s)
                 if bucket:
                     pipeline[bucket] += 1
             data["pipeline"] = pipeline
-            data["total_leads"] = len(records)
+            data["total_leads"] = len(main_contacts)
     except Exception as e:
         data["airtable_error"] = str(e)
     _cache["data"] = data
