@@ -196,9 +196,9 @@ def api_send_sms():
         import uuid
         r = requests.post(f"{bb_url}/api/v1/message/text",
             headers={"Content-Type": "application/json"},
+            params={"password": bb_pass},
             json={"chatGuid": f"SMS;-;{to}", "message": message,
-                  "method": "private-api", "tempGuid": str(uuid.uuid4()),
-                  "password": bb_pass},
+                  "method": "private-api", "tempGuid": str(uuid.uuid4())},
             timeout=15)
         if r.ok:
             return jsonify({"ok": True})
