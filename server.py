@@ -3,6 +3,11 @@ from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import requests, json, os, time
 from pathlib import Path
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 app = Flask(__name__)
 CORS(app)
@@ -48,11 +53,11 @@ def fetch_live_data():
             all_records = []
             offset = None
             while True:
-                params = {"pageSize": 100, "filterByFormula": ACTIVE_FILTER}
+                params = [("pageSize", "100"), ("filterByFormula", ACTIVE_FILTER)]
                 for field in FIELDS:
-                    params.setdefault("fields[]", []).append(field)
+                    params.append(("fields[]", field))
                 if offset:
-                    params["offset"] = offset
+                    params.append(("offset", offset))
                 r = requests.get(f"https://api.airtable.com/v0/{AIRTABLE_BASE}/{AIRTABLE_TABLE}",
                     headers=headers, params=params, timeout=30)
                 if not r.ok:
