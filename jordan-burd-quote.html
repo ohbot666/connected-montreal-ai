@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jordan Burd — Connected Montreal Quote</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
+         background: #0a0a0a; color: #f0f0f0; font-size: 15px; line-height: 1.6;
+         padding-bottom: 80px; }
+  a { color: inherit; text-decoration: none; }
+
+  .hero { width: 100%; display: block; }
+  .hero img { width: 100%; display: block; max-height: 260px; object-fit: cover; }
+
+  .press-bar { background: #111; border-bottom: 1px solid #222; padding: 14px 20px; text-align: center; }
+  .press-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #555; margin-bottom: 10px; }
+  .press-logos { display: flex; justify-content: center; align-items: center; gap: 28px; flex-wrap: wrap; }
+  .press-logos img { height: 18px; opacity: 0.55; filter: grayscale(1) brightness(2); }
+
+  .section { padding: 28px 20px; border-bottom: 1px solid #1c1c1c; }
+  .section-title { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #c9a84c; margin-bottom: 16px; }
+  h2 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 4px; }
+  h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+
+  .info-band { display: flex; gap: 0; }
+  .info-chip { flex: 1; background: #161616; border: 1px solid #222; padding: 14px 16px; text-align: center; }
+  .info-chip:first-child { border-radius: 10px 0 0 10px; }
+  .info-chip:last-child  { border-radius: 0 10px 10px 0; border-left: 0; }
+  .chip-val { font-size: 16px; font-weight: 800; letter-spacing: -0.3px; }
+  .chip-lbl { font-size: 11px; color: #666; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .accom-photo-wrap { position: relative; border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
+  .accom-photo { width: 100%; display: block; max-height: 220px; object-fit: cover; }
+  .photo-badge { position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.75); color: #fff; font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 20px; backdrop-filter: blur(4px); }
+  .accom-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .accom-meta-item { background: #161616; border: 1px solid #222; border-radius: 8px; padding: 10px 12px; }
+  .meta-lbl { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+  .meta-val { font-size: 14px; font-weight: 700; margin-top: 2px; }
+  .addr-link { color: #c9a84c; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; margin-top: 10px; }
+
+  .services-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .services-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; color: #ccc; }
+  .services-list li::before { content: "✓"; color: #c9a84c; font-weight: 800; flex-shrink: 0; margin-top: 1px; }
+
+  .day-group { margin-bottom: 24px; }
+  .day-label { font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #c9a84c; margin-bottom: 10px; }
+  .event-card { background: #161616; border: 1px solid #222; border-radius: 10px; padding: 14px; margin-bottom: 8px; }
+  .event-top { display: flex; align-items: flex-start; gap: 12px; }
+  .event-emoji { font-size: 22px; flex-shrink: 0; }
+  .event-info { flex: 1; min-width: 0; }
+  .event-name { font-size: 15px; font-weight: 700; }
+  .event-time { font-size: 12px; color: #888; margin-top: 2px; }
+  .event-desc { font-size: 13px; color: #999; margin-top: 8px; line-height: 1.5; border-top: 1px solid #222; padding-top: 8px; }
+
+  /* Upgrades */
+  .upgrades-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .upgrade-card { background: #161616; border: 1px solid #222; border-radius: 10px; padding: 14px; }
+  .upgrade-card.selected { border-color: #c9a84c; background: #1a1608; }
+  .upgrade-badge { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #000; background: #c9a84c; border-radius: 4px; padding: 2px 7px; margin-bottom: 8px; }
+  .upgrade-name { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  .upgrade-detail { font-size: 12px; color: #777; line-height: 1.5; }
+
+  .price-table { width: 100%; }
+  .price-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid #1a1a1a; font-size: 14px; }
+  .price-row:last-child { border-bottom: none; }
+  .price-row .label { color: #aaa; }
+  .price-row .val { font-weight: 700; }
+  .price-group-head { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #c9a84c; padding: 14px 0 6px; }
+  .price-total-row { display: flex; justify-content: space-between; align-items: center; background: #c9a84c; border-radius: 10px; padding: 14px 16px; margin-top: 16px; }
+  .price-total-row .label { font-size: 14px; font-weight: 700; color: #000; }
+  .price-total-row .val   { font-size: 20px; font-weight: 900; color: #000; }
+  .per-person { text-align: center; color: #888; font-size: 13px; margin-top: 10px; }
+  .per-person strong { color: #f0f0f0; }
+
+  .steps { display: flex; flex-direction: column; gap: 14px; }
+  .step  { display: flex; gap: 14px; align-items: flex-start; }
+  .step-num { width: 32px; height: 32px; background: #c9a84c; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: #000; flex-shrink: 0; }
+  .step-text h3 { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+  .step-text p  { font-size: 13px; color: #888; }
+
+  .cta-section { padding: 32px 20px; text-align: center; }
+  .cta-section p { color: #888; font-size: 14px; margin-bottom: 24px; line-height: 1.5; }
+  .cta-btn { display: inline-block; background: #c9a84c; color: #000; font-size: 17px; font-weight: 800; padding: 17px 40px; border-radius: 12px; letter-spacing: -0.2px; width: 100%; transition: opacity .2s; }
+  .cta-btn:hover { opacity: 0.88; }
+  .down-note { font-size: 12px; color: #666; margin-top: 10px; }
+
+  .policy-box { background: #111; border: 1px solid #222; border-radius: 10px; padding: 16px; font-size: 12px; color: #666; line-height: 1.6; margin-top: 16px; }
+  .policy-box strong { color: #999; }
+
+  .contact-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #111; border-top: 1px solid #222; display: flex; z-index: 100; }
+  .contact-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 0; font-size: 11px; font-weight: 600; color: #aaa; letter-spacing: 0.3px; transition: color .15s; border: none; background: none; cursor: pointer; }
+  .contact-btn:hover { color: #fff; }
+  .contact-btn .icon { font-size: 20px; margin-bottom: 2px; }
+  .contact-btn + .contact-btn { border-left: 1px solid #222; }
+
+  @media (min-width: 640px) {
+    body { max-width: 680px; margin: 0 auto; }
+    .hero img { max-height: 360px; border-radius: 0 0 16px 16px; }
+    .section { padding: 32px 28px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <img src="https://documint.s3.amazonaws.com/accounts/61db2ecae636260004b12f5b/assets/686c1ab7930cb27324a72381" alt="Connected Montreal">
+</div>
+
+<!-- AS SEEN IN -->
+<div class="press-bar">
+  <div class="press-label">As Seen In</div>
+  <div class="press-logos">
+    <img src="https://documint.s3.amazonaws.com/accounts/61db2ecae636260004b12f5b/assets/64cc14cbc102014a1f1fbf2f" alt="Eater">
+    <img src="https://documint.s3.amazonaws.com/accounts/61db2ecae636260004b12f5b/assets/64cc14cbc102014a1f1fbf30" alt="Fast Company">
+    <img src="https://documint.s3.amazonaws.com/accounts/61db2ecae636260004b12f5b/assets/64cc14cbc102014a1f1fbf31" alt="Vice">
+  </div>
+</div>
+
+<!-- CLIENT INFO BAND -->
+<div class="section">
+  <div class="section-title">Your Trip</div>
+  <h2>Jordan's Montreal Bachelor Party</h2>
+  <p style="color:#888;margin:6px 0 20px;font-size:14px;">Jordan Burd</p>
+  <div class="info-band">
+    <div class="info-chip">
+      <div class="chip-val">Aug 6</div>
+      <div class="chip-lbl">Arrival</div>
+    </div>
+    <div class="info-chip">
+      <div class="chip-val">15</div>
+      <div class="chip-lbl">Guests</div>
+    </div>
+    <div class="info-chip">
+      <div class="chip-val">3</div>
+      <div class="chip-lbl">Nights</div>
+    </div>
+  </div>
+</div>
+
+<!-- ACCOMMODATIONS -->
+<div class="section">
+  <div class="section-title">Accommodations</div>
+  <h3>Luxury Downtown Mansion</h3>
+  <div class="accom-photo-wrap">
+    <a href="https://connectedmontreal.com/wp-content/uploads/2025/08/3430-Luxury-Mansion-.pdf" target="_blank" rel="noopener">
+      <img class="accom-photo" src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800" alt="Luxury Downtown Mansion">
+      <div class="photo-badge">📄 View PDF</div>
+    </a>
+  </div>
+  <div style="font-size:13px;color:#888;margin-bottom:12px;">5,500 sq ft &nbsp;·&nbsp; 5 Bedrooms &nbsp;·&nbsp; 12 Beds &nbsp;·&nbsp; 3.5 Bath &nbsp;·&nbsp; 4 Floors</div>
+  <div class="accom-meta">
+    <div class="accom-meta-item">
+      <div class="meta-lbl">Check In</div>
+      <div class="meta-val">3:00 PM, Aug 6</div>
+    </div>
+    <div class="accom-meta-item">
+      <div class="meta-lbl">Check Out</div>
+      <div class="meta-val">11:00 AM, Aug 9</div>
+    </div>
+    <div class="accom-meta-item">
+      <div class="meta-lbl">Nights</div>
+      <div class="meta-val">3</div>
+    </div>
+    <div class="accom-meta-item">
+      <div class="meta-lbl">Guests</div>
+      <div class="meta-val">15</div>
+    </div>
+  </div>
+</div>
+
+<!-- WHAT'S INCLUDED -->
+<div class="section">
+  <div class="section-title">What's Included</div>
+  <ul class="services-list">
+    <li>Our legendary bachelor party planning service and expertise</li>
+    <li>Customized itinerary built around your input</li>
+    <li>Travel concierge — immediate support while in town</li>
+    <li>Dinner reservations for the group</li>
+    <li>No cover charges or waiting in line at nightclubs</li>
+    <li>Tips for doormen at nightclubs and strip clubs</li>
+    <li>Personal host — your man on the ground for the weekend</li>
+  </ul>
+</div>
+
+<!-- ITINERARY -->
+<div class="section">
+  <div class="section-title">Your Itinerary</div>
+
+  <div class="day-group">
+    <div class="day-label">Day 1 — Thu, Aug 6, 2026</div>
+
+    <div class="event-card">
+      <div class="event-top">
+        <span class="event-emoji">🍺</span>
+        <div class="event-info">
+          <div class="event-name">Topless Beer Pong</div>
+          <div class="event-time">5:00 PM · 2 Girls, 2 Hours</div>
+        </div>
+      </div>
+      <div class="event-desc">Throw a frat-inspired party that would make the Tri-Lambs proud. What better bonding experience than some pong with some local hotties.</div>
+    </div>
+  </div>
+
+  <div class="day-group">
+    <div class="day-label">Day 2 — Fri, Aug 7, 2026</div>
+
+    <div class="event-card">
+      <div class="event-top">
+        <span class="event-emoji">🌊</span>
+        <div class="event-info">
+          <div class="event-name">White Water Rafting</div>
+          <div class="event-time">1:00 PM · For 15 People</div>
+        </div>
+      </div>
+      <div class="event-desc">A must-do in Montreal. Experience the rapids right off the island of Montreal. Get the adrenaline flowing and shake off that hangover.</div>
+    </div>
+
+    <div class="event-card">
+      <div class="event-top">
+        <span class="event-emoji">💃</span>
+        <div class="event-info">
+          <div class="event-name">Strip Club — No Line / No Cover</div>
+          <div class="event-time">9:00 PM · For 15 People</div>
+        </div>
+      </div>
+      <div class="event-desc">Tour the local ballet — no line or cover to Montreal's best strip clubs.</div>
+    </div>
+  </div>
+
+  <div class="day-group">
+    <div class="day-label">Day 3 — Sat, Aug 8, 2026</div>
+
+    <div class="event-card">
+      <div class="event-top">
+        <span class="event-emoji">🍽️</span>
+        <div class="event-info">
+          <div class="event-name">Dinner at the Supper Club</div>
+          <div class="event-time">9:00 PM · Meal Included · For 15 People</div>
+        </div>
+      </div>
+      <div class="event-desc">A bachelor party staple. Have your last meal in style — family-style dinner included so you won't have to worry about splitting that large bill amongst your drunk friends.</div>
+    </div>
+
+    <div class="event-card">
+      <div class="event-top">
+        <span class="event-emoji">🎉</span>
+        <div class="event-info">
+          <div class="event-name">Bottles @ Supper Club</div>
+          <div class="event-time">11:30 PM · 4 Bottles Included</div>
+        </div>
+      </div>
+      <div class="event-desc">Cost, convenience, comfort, and status — bottle service for the group. Grey Goose or equivalent, mixers and tips included.</div>
+    </div>
+  </div>
+</div>
+
+<!-- UPGRADES & OPTIONS -->
+<div class="section">
+  <div class="section-title">Accommodation Options</div>
+  <p style="font-size:13px;color:#888;margin-bottom:16px;">Your current quote includes the Luxury Downtown Mansion. Other options available:</p>
+  <div class="upgrades-grid">
+    <div class="upgrade-card selected">
+      <div class="upgrade-badge">✓ Selected</div>
+      <div class="upgrade-name">Luxury Downtown Mansion</div>
+      <div class="upgrade-detail">5 BR · 12 Beds · 3.5 Bath · 4 Floors · 5,500 sq ft</div>
+    </div>
+    <div class="upgrade-card">
+      <div class="upgrade-name">Bachelor Party Pad</div>
+      <div class="upgrade-detail">5 BR · 13 Beds · 2.5 Bath · 3 Floors · 5,000 sq ft</div>
+    </div>
+    <div class="upgrade-card">
+      <div class="upgrade-name">House on the Main</div>
+      <div class="upgrade-detail">6 BR · 11 Beds · 3.5 Bath · 2 Floors · 2 Massive Patios · 2,500 sq ft</div>
+    </div>
+    <div class="upgrade-card">
+      <div class="upgrade-name">Modern Townhouse</div>
+      <div class="upgrade-detail">4 BR · 12 Beds · 2.5 Bath · 2 Floors · Pool Table · Patio · 3,000 sq ft</div>
+    </div>
+  </div>
+</div>
+
+<!-- PRICING -->
+<div class="section">
+  <div class="section-title">Pricing (USD)</div>
+  <div class="price-table">
+
+    <div class="price-group-head">Services</div>
+    <div class="price-row"><span class="label">Subtotal</span><span class="val">$6,100.00</span></div>
+    <div class="price-row"><span class="label">GST 5%</span><span class="val">$315.68</span></div>
+    <div class="price-row"><span class="label">QST</span><span class="val">$629.77</span></div>
+    <div class="price-row"><span class="label">Credit Card Fee</span><span class="val">$213.50</span></div>
+    <div class="price-row"><span class="label" style="font-weight:700;color:#f0f0f0;">Services Total</span><span class="val" style="color:#c9a84c;">$7,258.95</span></div>
+
+    <div class="price-group-head">Accommodation</div>
+    <div class="price-row"><span class="label">Subtotal</span><span class="val">$5,500.00</span></div>
+    <div class="price-row"><span class="label">GST 5%</span><span class="val">$309.78</span></div>
+    <div class="price-row"><span class="label">QST</span><span class="val">$618.00</span></div>
+    <div class="price-row"><span class="label">Hospitality Tax</span><span class="val">$192.50</span></div>
+    <div class="price-row"><span class="label">Cleaning Fee</span><span class="val">$300.00</span></div>
+    <div class="price-row"><span class="label">Credit Card Fee</span><span class="val">$203.00</span></div>
+    <div class="price-row"><span class="label" style="font-weight:700;color:#f0f0f0;">Accommodation Total</span><span class="val" style="color:#c9a84c;">$7,123.28</span></div>
+
+    <div class="price-total-row">
+      <span class="label">Grand Total</span>
+      <span class="val">$14,382.23</span>
+    </div>
+    <div class="per-person">That's <strong>$958.82 per person</strong> for 15 guests</div>
+    <div class="per-person" style="margin-top:6px;">Down payment to book: <strong>$4,061.64</strong></div>
+  </div>
+</div>
+
+<!-- NEXT STEPS -->
+<div class="section">
+  <div class="section-title">Next Steps</div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-text">
+        <h3>Book your spot</h3>
+        <p>Pay your deposit of $500 + half the accommodation fee ($3,561.64) = <strong style="color:#f0f0f0;">$4,061.64 total</strong> to lock in your dates.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-text">
+        <h3>Call with your reservation specialist</h3>
+        <p>Detailed itinerary, reservation confirmations, and payment. We're here from booking until you arrive.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-text">
+        <h3>Arrive into town</h3>
+        <p>Hassle-free weekend. In-town support, game-time audibles — we make sure the party goes on uninterrupted.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="policy-box" style="margin-top:20px;">
+    <strong>Booking Policy</strong><br>
+    All deposits are non-refundable. Final payment due in full 7 days prior to arrival. Substitutions or cancellations credited 50% towards another service. 48hr cancellation policy for daytime activities. No refunds for unused services or no-shows.
+  </div>
+</div>
+
+<!-- BOOK MY TRIP CTA -->
+<div class="cta-section">
+  <p>Ready to make it official? Pay your deposit and lock in your dates — spots fill fast.</p>
+  <a class="cta-btn" href="#" target="_blank" rel="noopener">Book My Trip 🎉</a>
+  <div class="down-note">Deposit: $4,061.64 USD</div>
+</div>
+
+<!-- STICKY CONTACT BAR -->
+<div class="contact-bar">
+  <a class="contact-btn" href="sms:+18776904919">
+    <span class="icon">💬</span>Text Us
+  </a>
+  <a class="contact-btn" href="mailto:Oren@connectedmontreal.com">
+    <span class="icon">✉️</span>Email
+  </a>
+  <button class="contact-btn" onclick="navigator.clipboard.writeText(window.location.href).then(()=>alert('Link copied!'))">
+    <span class="icon">🔗</span>Share
+  </button>
+</div>
+
+</body>
+</html>

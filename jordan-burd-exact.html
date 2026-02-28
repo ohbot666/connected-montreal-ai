@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jordan Burd — Connected Montreal Quote</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Montserrat', Helvetica, Arial, sans-serif;
+    background: #fff;
+    color: #000;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .container {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0 40px;
+  }
+
+  a { color: #0000EE; }
+
+  /* ── HERO ── */
+  .hero { width: 100%; display: block; }
+  .hero img { width: 100%; display: block; }
+
+  /* ── AS SEEN IN ── */
+  .press-section {
+    text-align: center;
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid #e8e8e8;
+  }
+  .press-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #757575;
+    margin-bottom: 12px;
+  }
+  .press-logos {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 32px;
+  }
+  .press-logos img {
+    height: 28px;
+    opacity: 0.5;
+    filter: grayscale(1);
+  }
+
+  /* ── CLIENT INTRO ── */
+  .client-intro {
+    text-align: center;
+    padding: 36px 40px 32px;
+    border-bottom: 1px solid #e8e8e8;
+  }
+  .client-name {
+    font-size: 28px;
+    font-weight: 700;
+    color: #000;
+    margin-bottom: 6px;
+  }
+  .client-meta {
+    font-size: 13px;
+    color: #757575;
+    line-height: 1.5;
+    margin-bottom: 24px;
+  }
+  .client-note {
+    font-size: 11px;
+    font-weight: 600;
+    font-style: italic;
+    color: #000;
+    max-width: 460px;
+    margin: 0 auto;
+    line-height: 1.75;
+  }
+
+  /* ── SECTION TITLES ── */
+  .section-title {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 17px;
+    font-weight: 400;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    text-align: center;
+    margin: 40px 0 22px;
+    color: #000;
+  }
+  .section-title.bordered {
+    border: 1px solid #000;
+    padding: 14px 20px;
+    display: inline-block;
+    width: 100%;
+  }
+
+  /* ── SECTIONS ── */
+  .section {
+    padding: 0 0 36px;
+    border-bottom: 1px solid #e8e8e8;
+  }
+
+  /* ── ACCOMMODATIONS ── */
+  .accom-heading {
+    font-size: 13px;
+    font-weight: 700;
+    color: #000;
+    margin-bottom: 4px;
+  }
+  .accom-link {
+    font-size: 11px;
+    color: #0000EE;
+    display: inline;
+    word-break: break-all;
+  }
+  .accom-img {
+    width: 100%;
+    display: block;
+    margin-top: 14px;
+  }
+
+  /* ── SERVICES ── */
+  .service-block { margin-bottom: 20px; }
+  .service-heading {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .checklist { list-style: none; }
+  .checklist li {
+    display: flex;
+    gap: 8px;
+    font-size: 12px;
+    color: #000;
+    margin-bottom: 5px;
+    align-items: flex-start;
+  }
+  .checklist li::before {
+    content: "✔";
+    font-size: 11px;
+    margin-top: 1px;
+    flex-shrink: 0;
+  }
+  .service-body {
+    font-size: 12px;
+    color: #000;
+    line-height: 1.6;
+  }
+
+  /* ── EVENTS ── */
+  .day-header {
+    font-size: 17px;
+    font-weight: 700;
+    color: #000;
+    margin: 28px 0 14px;
+  }
+  .event-row {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 22px;
+    align-items: flex-start;
+  }
+  .event-time {
+    font-size: 12px;
+    font-weight: 600;
+    color: #000;
+    min-width: 72px;
+    flex-shrink: 0;
+    padding-top: 1px;
+  }
+  .event-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #000;
+    margin-bottom: 3px;
+  }
+  .event-desc {
+    font-size: 11px;
+    color: #757575;
+    line-height: 1.55;
+  }
+
+  /* ── GRAND TOTAL BOX ── */
+  .grand-total-box {
+    background: #000;
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 28px;
+    margin: 32px 0 0;
+  }
+  .gt-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #aaa;
+    margin-bottom: 4px;
+  }
+  .gt-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  /* ── PRICING BREAKDOWN ── */
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .price-box { border: 1px solid #ddd; }
+  .price-box-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    background: #f2f2f2;
+    padding: 10px 12px;
+    border-bottom: 1px solid #ddd;
+    text-align: center;
+  }
+  .price-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 7px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 11px;
+  }
+  .price-row:last-child { border-bottom: none; }
+  .price-row.total-row {
+    background: #f2f2f2;
+    font-weight: 700;
+    font-size: 12px;
+    border-top: 1px solid #ddd;
+    border-bottom: none;
+  }
+  .price-row .lbl { color: #444; }
+  .price-row .val { font-weight: 600; white-space: nowrap; padding-left: 8px; }
+  .price-pp {
+    font-size: 10px;
+    color: #757575;
+    padding: 5px 12px 8px;
+    background: #f8f8f8;
+    border-top: 1px solid #eee;
+    text-align: center;
+    font-weight: 600;
+  }
+  .tax-note {
+    text-align: center;
+    font-size: 10px;
+    color: #757575;
+    margin-top: 14px;
+    line-height: 1.7;
+  }
+
+  /* ── CTA BUTTONS ── */
+  .cta-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 0;
+  }
+  .cta-btn {
+    display: block;
+    background: #000;
+    color: #fff;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    text-align: center;
+    text-decoration: none;
+    padding: 18px 10px;
+    border: none;
+    cursor: pointer;
+  }
+  .cta-btn:hover { opacity: 0.85; color: #fff; }
+
+  /* ── NEXT STEPS ── */
+  .steps-list { list-style: none; }
+  .step-item {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    align-items: flex-start;
+  }
+  .step-num {
+    width: 28px;
+    height: 28px;
+    border: 2px solid #000;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .step-title { font-size: 13px; font-weight: 700; margin-bottom: 5px; }
+  .step-desc { font-size: 12px; color: #444; line-height: 1.65; }
+
+  /* ── UPGRADES GRID ── */
+  .property-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .property-card { border: 1px solid #ddd; }
+  .property-card.selected { border: 2px solid #000; }
+  .property-selected-badge {
+    background: #000;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    text-align: center;
+    padding: 5px;
+  }
+  .property-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 10px 10px 4px;
+    text-transform: uppercase;
+  }
+  .property-img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    display: block;
+  }
+  .property-specs {
+    font-size: 10px;
+    color: #0000EE;
+    padding: 6px 10px 10px;
+    line-height: 1.5;
+  }
+  .upgrades-intro {
+    font-size: 12px;
+    font-style: italic;
+    color: #444;
+    text-align: center;
+    margin-bottom: 20px;
+    line-height: 1.65;
+  }
+
+  /* ── ACTIVITY GRIDS ── */
+  .section-intro {
+    font-size: 12px;
+    font-style: italic;
+    color: #444;
+    text-align: center;
+    margin-bottom: 18px;
+    line-height: 1.65;
+  }
+  .activity-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .activity-card { text-align: center; }
+  .activity-img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    display: block;
+    margin-bottom: 7px;
+  }
+  .activity-name {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #000;
+    margin-bottom: 3px;
+    line-height: 1.35;
+  }
+  .activity-price {
+    font-size: 10px;
+    color: #555;
+    font-weight: 500;
+  }
+
+  /* ── POLICY ── */
+  .policy-section { padding: 32px 0 24px; }
+  .policy-title {
+    font-family: Georgia, serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .policy-text {
+    font-size: 10px;
+    color: #757575;
+    text-align: center;
+    line-height: 1.75;
+  }
+  .policy-divider {
+    text-align: center;
+    color: #ccc;
+    font-size: 10px;
+    margin-bottom: 16px;
+  }
+
+  /* ── FOOTER ── */
+  .footer {
+    text-align: center;
+    padding: 24px 20px 48px;
+    border-top: 1px solid #e0e0e0;
+  }
+  .footer-logo {
+    font-size: 26px;
+    font-weight: 900;
+    margin-bottom: 8px;
+    letter-spacing: -1px;
+  }
+  .footer-info {
+    font-size: 11px;
+    color: #757575;
+    line-height: 1.9;
+  }
+  .footer-info a { color: #0000EE; }
+</style>
+</head>
+<body>
+
+<!-- ── HERO IMAGE (from PDF) ── -->
+<div class="hero">
+  <img src="pdf-img-000.png" alt="Connected Montreal — Making Bachelor Parties Epic Since 2012">
+</div>
+
+<!-- ── AS SEEN IN ── -->
+<div class="press-section">
+  <div class="press-label">As Seen In</div>
+  <div class="press-logos">
+    <img src="pdf-img-011.png" alt="Eater">
+    <img src="pdf-img-022.png" alt="Fast Company">
+    <img src="pdf-img-033.png" alt="Vice">
+  </div>
+</div>
+
+<!-- ── CLIENT INTRO ── -->
+<div class="client-intro">
+  <div class="client-name">Jordan Burd</div>
+  <div class="client-meta">
+    Starting on: 8/6/2026<br>
+    For 15 people
+  </div>
+  <div class="client-note">
+    *At this stage it's more important to figure out the macro details of the trip. We will plan the
+    Itinerary together so don't worry if you don't have all the final details right now. You have up
+    to 1 week before arrival to make any changes, giving you the flexibility to easily add or drop events.
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ── ACCOMMODATIONS ── -->
+  <div class="section">
+    <div class="section-title">Accommodations</div>
+    <div class="accom-heading">Luxury Downtown Mansion — 3 Nights &nbsp;&nbsp;Check In: 3:00 PM &nbsp;Check Out: 11:00 AM</div>
+    <p style="font-size:11px;margin-top:4px;">
+      •Your own mansion for the weekend! 5500sq feet - 5 bedrooms - 3 floors - 12 beds
+      &nbsp;<a class="accom-link" href="https://connectedmontreal.com/wp-content/uploads/2025/08/3430-Luxury-Mansion-.pdf" target="_blank">More info and pics</a>
+    </p>
+    <img class="accom-img" src="pdf-img-039.png" alt="Luxury Downtown Mansion">
+  </div>
+
+  <!-- ── SERVICES ── -->
+  <div class="section">
+    <div class="section-title bordered">Services</div>
+
+    <div class="service-block">
+      <div class="service-heading">Essential Services — For 15 People</div>
+      <ul class="checklist">
+        <li>Our legendary bachelor party planning service and expertise - We ensure you have the best time.</li>
+        <li>Customized itinerary - We will plan out the trip based on your input.</li>
+        <li>Travel Concierge - Get immediate support while in town.</li>
+        <li>Dinner reservations.</li>
+        <li>No cover charges or waiting in line at the night clubs.</li>
+        <li>Tips for doormen at nightclubs and strip clubs.</li>
+      </ul>
+    </div>
+
+    <div class="service-block">
+      <div class="service-heading">Personal Host</div>
+      <div class="service-body">Personal host: your man on the ground for the weekend. They will escort you into the venues and take care of you during your trip.</div>
+    </div>
+  </div>
+
+  <!-- ── EVENTS ── -->
+  <div class="section">
+    <div class="section-title bordered">Events</div>
+
+    <div class="day-header">DAY 1 — THU, AUG 06, 2026</div>
+    <div class="event-row">
+      <div class="event-time">5:00 PM</div>
+      <div>
+        <div class="event-name">Topless Beer Pong — 2 Girls, 2 Hours</div>
+        <div class="event-desc">•Throw A Frat Inspired Party That Would Make The Tri-lambs Proud. What Better Bonding Experience Than Some Pong With Some Local Hotties. $425 Per Extra Girl.</div>
+      </div>
+    </div>
+
+    <div class="day-header">DAY 2 — FRI, AUG 07, 2026</div>
+    <div class="event-row">
+      <div class="event-time">1:00 PM</div>
+      <div>
+        <div class="event-name">White Water Rafting — For 15 People</div>
+        <div class="event-desc">•A must do in Montreal. Experience the rapids right off the island of Montreal. Get the adrenaline flowing and shake off that hangover.</div>
+      </div>
+    </div>
+    <div class="event-row">
+      <div class="event-time">9:00 PM</div>
+      <div>
+        <div class="event-name">Entry to the Strip Club — No Line / Cover — For 15 People</div>
+        <div class="event-desc">•Tour the local ballet, no line or cover to Montreal's best strip clubs.</div>
+      </div>
+    </div>
+
+    <div class="day-header">DAY 3 — SAT, AUG 08, 2026</div>
+    <div class="event-row">
+      <div class="event-time">9:00 PM</div>
+      <div>
+        <div class="event-name">Dinner at the Supper Club — Meal Included — For 15 People</div>
+        <div class="event-desc">•A bachelor party staple. Have your last meal in style, A family style dinner is included so you won't have to worry about splitting that large bill amongst your drunk friends.</div>
+      </div>
+    </div>
+    <div class="event-row">
+      <div class="event-time">11:30 PM</div>
+      <div>
+        <div class="event-name">Bottles @ Supper Club — 4 Bottles Included</div>
+        <div class="event-desc">•Cost, convenience, comfort, and status are only some of the benefits of bottle service. Also, if you want girls to notice your group, get bottles. More bottles, more girls. (Grey Goose or equiv, mixers and tips included)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PRICING ── -->
+  <div class="section">
+    <div class="grand-total-box">
+      <div>
+        <div class="gt-label">Grand Total $USD</div>
+        <div class="gt-value">$14,382.23</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="gt-label">Cost Per Person $USD</div>
+        <div class="gt-value">$958.82</div>
+      </div>
+    </div>
+
+    <div class="pricing-grid">
+      <div class="price-box">
+        <div class="price-box-title">Accommodation Breakdown</div>
+        <div class="price-row"><span class="lbl">Subtotal</span><span class="val">$5,500.00</span></div>
+        <div class="price-row"><span class="lbl">GST 5% &nbsp;<small style="color:#aaa;">#816342489RT0001</small></span><span class="val">$309.78</span></div>
+        <div class="price-row"><span class="lbl">QST &nbsp;<small style="color:#aaa;">#1218929652TQ0001</small></span><span class="val">$618.00</span></div>
+        <div class="price-row"><span class="lbl">Hospitality Tax &nbsp;<small style="color:#aaa;">1084077263TQ0002</small></span><span class="val">$192.50</span></div>
+        <div class="price-row"><span class="lbl">Cleaning Fee</span><span class="val">$300.00</span></div>
+        <div class="price-row total-row"><span class="lbl">Total $USD</span><span class="val">$7,123.28</span></div>
+        <div class="price-pp">Per Person: $474.89</div>
+      </div>
+
+      <div class="price-box">
+        <div class="price-box-title">Service Breakdown</div>
+        <div class="price-row"><span class="lbl">Subtotal</span><span class="val">$6,100.00</span></div>
+        <div class="price-row"><span class="lbl">GST 5% &nbsp;<small style="color:#aaa;">#816342489RT0001</small></span><span class="val">$315.68</span></div>
+        <div class="price-row"><span class="lbl">QST &nbsp;<small style="color:#aaa;">#1218929652TQ0001</small></span><span class="val">$629.77</span></div>
+        <div class="price-row"><span class="lbl">CC Fee</span><span class="val">$213.50</span></div>
+        <div class="price-row total-row"><span class="lbl">Service Cost Total $USD</span><span class="val">$7,258.95</span></div>
+        <div class="price-pp">Per Person: $483.93</div>
+      </div>
+    </div>
+
+    <div class="tax-note">
+      GST/TPS # 816342489RT0001 &nbsp;&nbsp;|&nbsp;&nbsp; QST/TVQ # 1218929652TQ0001
+    </div>
+  </div>
+
+  <!-- ── WHAT WE DO ── -->
+  <div class="section">
+    <div class="section-title bordered">What We Do?</div>
+    <div class="cta-buttons">
+      <a class="cta-btn" href="https://connectedmontreal.com/reviews" target="_blank">Check Our Reviews</a>
+      <a class="cta-btn" href="https://connectedmontreal.com/video" target="_blank">Click Here to Watch the Video</a>
+    </div>
+  </div>
+
+  <!-- ── NEXT STEPS ── -->
+  <div class="section">
+    <div class="section-title bordered">Next Steps</div>
+    <ul class="steps-list">
+      <li class="step-item">
+        <div class="step-num">1</div>
+        <div>
+          <div class="step-title">Book Your Spot With Us</div>
+          <div class="step-desc">
+            We are a boutique operation and take a limited number of groups, a <strong>$500.00 deposit</strong> for the entertainment and half of the accommodation fee <strong>$3,561.64</strong> (if applicable) is needed to book.<br>
+            Your total down payment is: <strong>$4,061.64</strong>.<br><br>
+            <a href="#">This is your personal PAYMENT LINK</a>
+          </div>
+        </div>
+      </li>
+      <li class="step-item">
+        <div class="step-num">2</div>
+        <div>
+          <div class="step-title">Set Up A Call With Your Reservation Specialist</div>
+          <div class="step-desc">This Is Where The Sausage Is Made: Detailed Itinerary, Reservation Confirmations And Payment. Your Reservation Specialist Is There To Provide Support From The Time Of Booking Until You Arrive Into Town.</div>
+        </div>
+      </li>
+      <li class="step-item">
+        <div class="step-num">3</div>
+        <div>
+          <div class="step-title">Arrive Into Town</div>
+          <div class="step-desc">Have A Hassle Free Weekend. From In-town Support To Game Time Audibles - We Will Make Sure The Party Goes On Uninterrupted.</div>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- ── UPGRADES & OPTIONS ── -->
+  <div class="section">
+    <div class="section-title bordered">Upgrades and Options</div>
+    <div class="upgrades-intro">
+      Did you know that airbnb has a no party policy?<br><br>
+      We have houses built specifically for bachelor parties in downtown Montreal. No need to worry about lame Airbnb hosts who don't like noise or a poor location.<br><br>
+      These are the best options:
+    </div>
+
+    <div class="property-grid">
+      <!-- I6 = pdf-img-040 -->
+      <div class="property-card">
+        <div class="property-title">Montreal Bachelor Party Pad (Details)</div>
+        <img class="property-img" src="pdf-img-040.png" alt="Montreal Bachelor Party Pad">
+        <div class="property-specs">5 Bedrooms, 13 Beds, 2.5 Bath, 3 Floors, 5000 sq. ft.</div>
+      </div>
+      <!-- I7 = pdf-img-041 -->
+      <div class="property-card selected">
+        <div class="property-selected-badge">✓ Your Selection</div>
+        <div class="property-title">Luxury Downtown Mansion</div>
+        <img class="property-img" src="pdf-img-041.png" alt="Luxury Downtown Mansion">
+        <div class="property-specs">5 Bedrooms, 12 Beds, 3.5 Bath, 4 Floors, 5500 sq. ft.</div>
+      </div>
+      <!-- I8 = pdf-img-042 -->
+      <div class="property-card">
+        <div class="property-title">House on the Main</div>
+        <img class="property-img" src="pdf-img-042.png" alt="House on the Main">
+        <div class="property-specs">St. Laurent Blvd., 6 Bedrooms, 11 Beds, 3.5 Bath, 2 Floors, 2 Massive Patios, 2500 sq. ft.</div>
+      </div>
+      <!-- I9 = pdf-img-043 -->
+      <div class="property-card">
+        <div class="property-title">Modern Townhouse</div>
+        <img class="property-img" src="pdf-img-043.png" alt="Modern Townhouse">
+        <div class="property-specs">4 Bedrooms, 12 Beds, 2.5 Bath, 2 Floors, Pool Table, Patio, 3000 sq. ft.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DAYTIME EXPERIENCES ── -->
+  <!-- I10-I18 = pdf-img-001 through pdf-img-009 -->
+  <div class="section">
+    <div class="section-title bordered">Daytime Experiences</div>
+    <div class="activity-grid">
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-001.png" alt="White Water Rafting">
+        <div class="activity-name">White Water Rafting</div>
+        <div class="activity-price">$70/PP</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-002.png" alt="Canoes and Brews">
+        <div class="activity-name">Canoes and Brews</div>
+        <div class="activity-price">$75/PP</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-003.png" alt="Curling">
+        <div class="activity-name">Curling (Fall &amp; Winter Only)</div>
+        <div class="activity-price">$85/PP</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-004.png" alt="Go-Karting">
+        <div class="activity-name">Go-Karting</div>
+        <div class="activity-price">$75/PP</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-005.png" alt="Skeet Shooting">
+        <div class="activity-name">Skeet Shooting</div>
+        <div class="activity-price">$180</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-006.png" alt="Paintball">
+        <div class="activity-name">Paintball</div>
+        <div class="activity-price">$80/PP</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-007.png" alt="Yatch Rental">
+        <div class="activity-name">Yatch Rental</div>
+        <div class="activity-price">MSG for Details</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-008.png" alt="Craft Brew Pub Crawl">
+        <div class="activity-name">Craft Brew Pub Crawl</div>
+        <div class="activity-price">$75/PP</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-009.png" alt="Spa Day at Bota Bota">
+        <div class="activity-name">Spa Day at Bota Bota</div>
+        <div class="activity-price">$90/PP</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FOOD ── -->
+  <!-- I19-I27 = pdf-img-010, pdf-img-012 through pdf-img-019 -->
+  <div class="section">
+    <div class="section-title bordered">Food</div>
+    <div class="section-intro">Yes, we can be cultured too. Bagels, smoked meat, the Old Port, it's like sightseeing, but with better stories and fewer boring facts.</div>
+    <div class="activity-grid">
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-010.png" alt="Breakfast Bagels Catering">
+        <div class="activity-name">Breakfast Bagels Catering</div>
+        <div class="activity-price">$40/PP</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-012.png" alt="LEDs and Eggs">
+        <div class="activity-name">LEDs and Eggs</div>
+        <div class="activity-price">Starting at $850</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-013.png" alt="Montreal Food Tour">
+        <div class="activity-name">Montreal Food Tour</div>
+        <div class="activity-price">$75/PP</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-014.png" alt="Steakhouse Dinner">
+        <div class="activity-name">Steakhouse Dinner</div>
+        <div class="activity-price">Starting at $85/PP</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-015.png" alt="Dinner at the Supper Club">
+        <div class="activity-name">Dinner at the Supper Club</div>
+        <div class="activity-price">Starting at $90/PP</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-016.png" alt="Liverpool House Family Style Dinner">
+        <div class="activity-name">Liverpool House — Family Style Dinner</div>
+        <div class="activity-price">$120</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-017.png" alt="Personal Pit Master at Rental House">
+        <div class="activity-name">Personal Pitt Master at Rental House</div>
+        <div class="activity-price">$85/PP</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-018.png" alt="Pig or Lamb Roast at Rental House">
+        <div class="activity-name">Pig or Lamb Roast at Rental House</div>
+        <div class="activity-price">MSG for Details</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-019.png" alt="Schwartz Smoked Meat Slicer">
+        <div class="activity-name">Schwartz Smoked Meat Slicer at Rental House</div>
+        <div class="activity-price">$1,000</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── OUT OF THE BOX IDEAS ── -->
+  <!-- I28-I32 = pdf-img-020, 021, 023, 024, 025 -->
+  <div class="section">
+    <div class="section-title bordered">Out of the Box Ideas</div>
+    <div class="activity-grid">
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-020.png" alt="Dominatrix">
+        <div class="activity-name">Dominatrix</div>
+        <div class="activity-price">$500/HR</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-021.png" alt="Hypnotist">
+        <div class="activity-name">Hypnotist</div>
+        <div class="activity-price">$70/2HRS</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-023.png" alt="Show at Private Cigar Lounge">
+        <div class="activity-name">Show at Private Cigar Lounge</div>
+        <div class="activity-price">$1,150/3 HRS</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-024.png" alt="In House Poker Tournament">
+        <div class="activity-name">In House Poker Tournament</div>
+        <div class="activity-price">MSG for Details</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-025.png" alt="Private Table Games at Montreal Casino">
+        <div class="activity-name">Private Table Games at the Montreal Casino</div>
+        <div class="activity-price">MSG for Details</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ANTI-SAUSAGE PARTY PROTECTIVE MEASURES ── -->
+  <!-- I33-I35 = pdf-img-026, 027, 028 -->
+  <div class="section">
+    <div class="section-title bordered">Anti-Sausage Party Protective Measures</div>
+    <div class="activity-grid">
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-026.png" alt="College Girl Pub Crawl">
+        <div class="activity-name">College Girl Pub Crawl</div>
+        <div class="activity-price">$900/3 HRS</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-027.png" alt="Atmosphere Models at the Nightclub">
+        <div class="activity-name">Atmosphere Models at the Nightclub</div>
+        <div class="activity-price">$350/3HRS</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-028.png" alt="Female Model Golf Caddies">
+        <div class="activity-name">Female Model Golf Caddies</div>
+        <div class="activity-price">$500</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── LET'S GET WILD ── -->
+  <!-- I36-I43 = pdf-img-029 through 032, 034 through 037 -->
+  <div class="section">
+    <div class="section-title bordered">Let's Get Wild</div>
+    <div class="section-intro">Brunch with the girls, beer pong battles, a little entertainment on the side—it's all tastefully wild (or wildly tasteful, depending on your morning).</div>
+    <div class="activity-grid">
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-029.png" alt="Topless Beer Pong">
+        <div class="activity-name">Topless Beer Pong</div>
+        <div class="activity-price">$850/2 HRS</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-030.png" alt="Private Dance Show">
+        <div class="activity-name">Private Dance Show</div>
+        <div class="activity-price">$700/Hour for 2 Girls</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-031.png" alt="Limousine Pick Up w/ Dancers">
+        <div class="activity-name">Limousine Pick Up w/ Dancers</div>
+        <div class="activity-price">$1,200+</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-032.png" alt="Naked Sushi">
+        <div class="activity-name">Naked Sushi</div>
+        <div class="activity-price">$2,000 for up to 10 guests, $120+/guest beyond 10</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-034.png" alt="Brisket and Breast">
+        <div class="activity-name">Brisket and Breast</div>
+        <div class="activity-price">$1,000+</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-035.png" alt="Jello Wrestling">
+        <div class="activity-name">Jello Wrestling</div>
+        <div class="activity-price">$2,500</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-036.png" alt="Topless Poker">
+        <div class="activity-name">Topless Poker</div>
+        <div class="activity-price">$500 for 2 Hours</div>
+      </div>
+      <div class="activity-card">
+        <img class="activity-img" src="pdf-img-037.png" alt="Cigars, Dancers and Scotch">
+        <div class="activity-name">Cigars, Dancers and Scotch</div>
+        <div class="activity-price">$1,200</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CANCELLATION POLICY ── -->
+  <div class="policy-section">
+    <div class="policy-divider">___________________________________________</div>
+    <div class="policy-title">Cancellation — Substitution — Booking Policy</div>
+    <div class="policy-text">
+      All deposits are non-refundable. Final payment is due in full 7 days prior to arrival. House rental deposit is 50% and non-refundable. Substitutions or cancellations of package items are credited 50% towards another service/item. 48hr cancellation policy for daytime activities. No refunds for unused services/items (bottles, strippers, daytime activities). No refunds are given for those who are unable to attend due to weather, no-show or being denied entry at the border.
+    </div>
+  </div>
+
+</div>
+
+<!-- ── FOOTER ── -->
+<div class="footer">
+  <div class="footer-logo">C</div>
+  <div class="footer-info">
+    3414 Park Ave, Montreal, Quebec H2X 2H5<br>
+    +1 877-690-4919<br>
+    <a href="https://connectedmontreal.com" target="_blank">connectedmontreal.com</a>
+  </div>
+</div>
+
+</body>
+</html>

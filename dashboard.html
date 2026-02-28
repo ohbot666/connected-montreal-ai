@@ -399,6 +399,46 @@
   ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #444; }
   
+  .mobile-tab-bar { display: none; }
+  
+  @media (max-width: 768px) {
+    .mobile-tab-bar {
+      display: flex;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      background: #0a0a0f;
+      border-bottom: 1px solid #1e1e2e;
+      padding: 0;
+    }
+    .mobile-tab-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: #666;
+      padding: 10px 4px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .mobile-tab-btn.active {
+      color: #22c55e;
+      border-bottom-color: #22c55e;
+    }
+    [data-tab] { display: none !important; }
+    [data-tab].tab-active { display: block !important; }
+    /* Jay chat — taller + touch-friendly on mobile */
+    [id^="jay-msgs-"] { max-height: 280px !important; }
+    [id^="jay-"] input[type="text"] { font-size: 16px !important; padding: 10px 12px !important; }
+    [id^="jay-"] button { padding: 10px 14px !important; font-size: 13px !important; }
+    /* SMS thread — taller on mobile */
+    [id^="sms-thread-"] { max-height: 280px !important; }
+    [id^="sms-"] input[type="text"] { font-size: 16px !important; padding: 10px 12px !important; }
+  }
+  
   /* Responsive */
   @media (max-width: 1400px) {
     .column { padding: 12px; }
@@ -430,10 +470,25 @@
   </div>
 </div>
 
+<div class="mobile-tab-bar">
+  <button class="mobile-tab-btn active" onclick="switchTab('pipeline', this)">📋 Pipeline</button>
+  <button class="mobile-tab-btn" onclick="switchTab('traffic', this)">📈 Traffic</button>
+  <button class="mobile-tab-btn" onclick="switchTab('intel', this)">💡 Intel</button>
+</div>
+
 <div class="main-content">
   
   <!-- COLUMN 1: LEAD PIPELINE -->
-  <div class="column" id="col1">
+  <div class="column" id="col1" data-tab="pipeline">
+    <div class="section" style="padding-bottom:8px;">
+      <div style="position:relative;">
+        <input id="client-search" type="text" placeholder="🔍 Search all clients..." autocomplete="off"
+          style="width:100%;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;padding:9px 12px;font-size:12px;box-sizing:border-box;"
+          oninput="searchClients(this.value)" onfocus="searchClients(this.value)"/>
+        <div id="client-search-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:#111118;border:1px solid #1e1e2e;border-radius:0 0 6px 6px;z-index:100;max-height:200px;overflow-y:auto;margin-top:2px;"></div>
+      </div>
+      <div id="client-search-card" style="margin-top:8px;"></div>
+    </div>
     <div class="section">
       <div class="section-title">Pipeline Funnel</div>
       <div class="pipeline-funnel">
@@ -470,7 +525,7 @@
     <div class="section">
       <div class="section-title">New Requests</div>
       <div style="background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.2); border-radius: 6px; padding: 8px; margin-bottom: 10px;">
-        <div style="font-size: 16px; font-weight: 700; color: #4ade80;">5</div>
+        <div id="new-requests-count" style="font-size: 16px; font-weight: 700; color: #4ade80;">—</div>
         <div style="font-size: 9px; color: #4ade80; margin-top: 2px;">new requests waiting for contact</div>
       </div>
       <div class="leads-list">
@@ -502,7 +557,7 @@
   </div>
   
   <!-- COLUMN 2: TRAFFIC & ENGAGEMENT -->
-  <div class="column" id="col2">
+  <div class="column" id="col2" data-tab="traffic">
     <div class="section">
       <div class="section-title">Traffic & Pageviews</div>
       
@@ -570,7 +625,7 @@
   </div>
   
   <!-- COLUMN 3: AI INSIGHTS & ACTIONS -->
-  <div class="column" id="col3">
+  <div class="column" id="col3" data-tab="intel">
     <div class="section">
       <div class="section-title">Opportunities</div>
       <div id="opportunities-list"></div>
@@ -789,7 +844,116 @@ function renderNewRequests() {
 }
 
 // Render lead cards from API data
+let allLeads = [];
+
+let searchTimer = null;
+function searchClients(query) {
+  const results = document.getElementById('client-search-results');
+  if (!query.trim()) { results.style.display = 'none'; return; }
+  results.innerHTML = '<div style="padding:8px 12px;color:#555;font-size:11px;font-style:italic;">Searching...</div>';
+  results.style.display = 'block';
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(async () => {
+    try {
+      const r = await fetch('/api/search-clients?q=' + encodeURIComponent(query));
+      const d = await r.json();
+      if (!d.ok || !d.results.length) { results.innerHTML = '<div style="padding:8px 12px;color:#555;font-size:11px;">No results</div>'; return; }
+      const statusColors = {'New Request':'#60a5fa','talked to/ quoted':'#fbbf24','Booked':'#4ade80','No Go':'#ff6b6b','No Go - Coming to Town':'#ff6b6b','No Go - Not Coming to Town':'#ff6b6b'};
+      d.results.forEach(l => searchCache[l.id] = l);
+      results.innerHTML = d.results.map(l => {
+        const name = `${l.first_name} ${l.last_name}`.trim();
+        const color = statusColors[l.status] || '#888';
+        return `<div onclick="selectClient('${l.id}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #1e1e2e;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='none'">
+          <span style="color:#fff;font-size:12px;">${l.flag||''} ${name}</span>
+          <span style="color:${color};font-size:10px;">${l.status}</span>
+        </div>`;
+      }).join('');
+    } catch(e) {
+      results.innerHTML = '<div style="padding:8px 12px;color:#ff6b6b;font-size:11px;">Search failed</div>';
+    }
+  }, 300);
+}
+
+const searchCache = {};
+function selectClient(id, leadData) {
+  if (leadData) searchCache[id] = leadData;
+  const lead = searchCache[id] || allLeads.find(l => l.id === id);
+  if (!lead) return;
+  document.getElementById('client-search-results').style.display = 'none';
+  document.getElementById('client-search').value = `${lead.first_name} ${lead.last_name}`.trim();
+
+  const name = `${lead.first_name} ${lead.last_name}`.trim();
+  const flag = lead.flag || '';
+  const doa = lead.doa ? new Date(lead.doa).toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'}) : 'TBD';
+  const people = lead.people ? `${lead.people} people` : 'TBD';
+  const phone = lead.phone || '';
+  const grandTotal = lead.grand_total ? '$' + Number(lead.grand_total).toLocaleString('en-US',{maximumFractionDigits:0}) : '—';
+  const statusColors = {'New Request':'rgba(96,165,250,0.2)','talked to/ quoted':'rgba(251,191,36,0.15)','Booked':'rgba(74,222,128,0.15)','No Go':'rgba(255,107,107,0.15)'};
+  const borderColors = {'New Request':'rgba(96,165,250,0.4)','talked to/ quoted':'rgba(251,191,36,0.3)','Booked':'rgba(74,222,128,0.3)','No Go':'rgba(255,107,107,0.3)'};
+  const bg = statusColors[lead.status] || 'rgba(255,255,255,0.05)';
+  const border = borderColors[lead.status] || 'rgba(255,255,255,0.1)';
+  const qqDoa = lead.doa ? (()=>{ const d=new Date(lead.doa); return String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')+'/'+d.getFullYear(); })() : '';
+  const qqUrl = 'https://airtable.com/appHT9Re4l53GO16t/shriG53J9mKJvNZ2a?prefill_Contact='+encodeURIComponent(name)+'&prefill_DOAText='+encodeURIComponent(qqDoa)+'&prefill_Nights='+(lead.nights||2)+'&prefill_People='+(lead.people||'')+'&prefill_CreateEssentialServices=Yes';
+  const defaultMsg = `Hey ${lead.first_name}! This is Oren at Connected Montreal, got your request let me know when you're free to talk about the trip.`;
+
+  const cardId = 'search-' + id;
+  document.getElementById('client-search-card').innerHTML = `
+    <div style="background:${bg};border:1px solid ${border};border-radius:8px;padding:12px;position:relative;" class="lead-card">
+      <button onclick="document.getElementById('client-search-card').innerHTML='';document.getElementById('client-search').value='';" title="Close" style="position:absolute;top:6px;right:6px;background:none;border:none;color:#555;font-size:16px;cursor:pointer;line-height:1;padding:2px 4px;">✕</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-right:20px;">
+        <div style="font-weight:700;color:#fff;font-size:13px;cursor:pointer;" onclick="toggleExpand('${cardId}')">${flag} ${name} <span id="expand-arrow-${cardId}" style="font-size:10px;color:#666;">▼</span></div>
+        <div style="display:flex;gap:4px;align-items:center;">
+          <a href="https://airtable.com/appHT9Re4l53GO16t/tbl4P7tqdonXv5vcY/${id}" target="_blank" style="color:#aaa;text-decoration:none;font-size:14px;padding:2px 4px;">↗</a>
+          ${lead.status==='New Request'?`<a href="${qqUrl}" target="_blank" style="background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.3);border-radius:3px;color:#fbbf24;font-size:9px;font-weight:700;padding:2px 5px;text-decoration:none;">QQ</a>`:''}
+          <button onclick="openItinerary('${id}')" title="View Itinerary" style="background:none;border:none;cursor:pointer;font-size:15px;padding:2px 4px;">📁</button>
+          <button onclick="toggleJay('s-${id}')" title="Ask Jay" style="background:none;border:none;cursor:pointer;font-size:16px;padding:2px 4px;">🤖</button>
+          <button onclick="toggleSMS('s-${id}','${phone}')" title="Send SMS" style="background:none;border:none;cursor:pointer;font-size:16px;padding:2px 4px;">💬</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;color:#aaa;margin-bottom:6px;">
+        <div>📅 <span style="color:#4ade80;">${doa}</span></div>
+        <div>👥 <span style="color:#4ade80;">${people}</span></div>
+        <div>💰 <span style="color:#4ade80;">${grandTotal}</span></div>
+        <div>📋 <span style="color:#888;">${lead.status}</span></div>
+      </div>
+      <div id="expand-${cardId}" data-record-id="${id}" data-client-name="${name}" style="display:none;margin-top:8px;border-top:1px solid rgba(255,255,255,0.08);padding-top:8px;font-size:11px;">
+        <div style="margin-bottom:6px;">📞 <span style="color:#fff;">${phone||'—'}</span></div>
+        ${lead.notes?`<div style="color:#ccc;line-height:1.5;white-space:pre-wrap;font-size:11px;">${lead.notes.replace(/</g,'&lt;').substring(0,400)}</div>`:'<div style="color:#555;font-style:italic;">No notes.</div>'}
+        <div id="itinerary-${cardId}"></div>
+      </div>
+      <div id="sms-s-${id}" style="display:none;margin-top:10px;border-top:1px solid rgba(255,255,255,0.1);padding-top:10px;">
+        <div id="sms-thread-s-${id}" style="max-height:180px;overflow-y:auto;margin-bottom:8px;display:flex;flex-direction:column;gap:4px;"></div>
+        <div style="display:flex;gap:6px;align-items:flex-end;">
+          <input id="sms-text-s-${id}" type="text" placeholder="${defaultMsg}"
+            style="flex:1;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:18px;color:#fff;padding:8px 12px;font-size:12px;"
+            onkeydown="if(event.key==='Enter')sendSMS('s-${id}','${phone}')"/>
+          <button onclick="sendSMS('s-${id}','${phone}')" style="background:#4ade80;border:none;border-radius:50%;color:#000;width:32px;height:32px;font-size:16px;cursor:pointer;">↑</button>
+        </div>
+        <span id="sms-status-s-${id}" style="font-size:10px;color:#aaa;display:block;margin-top:4px;"></span>
+      </div>
+      <div id="jay-s-${id}" style="display:none;margin-top:10px;border-top:1px solid rgba(99,102,241,0.3);padding-top:10px;">
+        <div style="font-size:10px;color:#6366f1;font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">🤖 Jay</div>
+        <div id="jay-msgs-s-${id}" style="max-height:180px;overflow-y:auto;margin-bottom:8px;display:flex;flex-direction:column;gap:5px;"></div>
+        <div style="display:flex;gap:6px;">
+          <input id="jay-input-s-${id}" type="text" placeholder="Ask Jay about this client..."
+            style="flex:1;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:4px;color:#fff;padding:6px 8px;font-size:11px;"
+            onkeydown="if(event.key==='Enter')askJay('s-${id}','Client: ${name} | ${lead.status} | DOA: ${doa} | People: ${people}')"/>
+          <button onclick="askJay('s-${id}','Client: ${name} | ${lead.status} | DOA: ${doa} | People: ${people}')" style="background:#6366f1;border:none;border-radius:4px;color:#fff;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;">Ask</button>
+        </div>
+      </div>
+    </div>`;
+
+  // Hide results dropdown on outside click
+  document.addEventListener('click', function hideSearch(e) {
+    if (!e.target.closest('#client-search') && !e.target.closest('#client-search-results')) {
+      document.getElementById('client-search-results').style.display = 'none';
+      document.removeEventListener('click', hideSearch);
+    }
+  });
+}
+
 function renderLeads(leads) {
+  allLeads = leads;
   const newRequestsContainer = document.getElementById('new-requests-rows');
   if (!newRequestsContainer || !leads) return;
   
@@ -797,10 +961,8 @@ function renderLeads(leads) {
   const newRequests = leads.filter(lead => lead.status === "New Request");
   
   // Update the count
-  const countDiv = newRequestsContainer.parentElement.querySelector('[style*="rgba(34,197,94"]');
-  if (countDiv) {
-    countDiv.querySelector('[style*="font-size: 16px"]').textContent = newRequests.length;
-  }
+  const countEl = document.getElementById('new-requests-count');
+  if (countEl) countEl.textContent = newRequests.length;
   
   // Render lead cards
   const html = newRequests.map(lead => {
@@ -808,6 +970,7 @@ function renderLeads(leads) {
     const doa = lead.doa ? new Date(lead.doa).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}) : 'TBD';
     const people = lead.people ? `${lead.people} people` : 'TBD';
     const source = lead.source || 'Unknown';
+    const contextString = encodeURIComponent(`Client: ${name} | Status: ${lead.status} | DOA: ${doa} | People: ${lead.people || 'TBD'} | Phone: ${lead.phone || 'N/A'} | Total: ${lead.grand_total ? '$' + lead.grand_total : 'TBD'} | Nights: ${lead.nights || '?'} | Accommodation: ${lead.accommodation || 'TBD'} | Notes: ${(lead.notes||'').substring(0,200)}`);
     
     // Calculate time since created
     const created = lead.created_on ? new Date(lead.created_on) : null;
@@ -824,12 +987,24 @@ function renderLeads(leads) {
     }
     
     const phone = lead.phone || '';
-    const defaultMsg = `Hey ${lead.first_name}! Got your request let me know when you\'re free to talk about the trip.`;
+    const defaultMsg = `Hey ${lead.first_name}! This is Oren at Connected Montreal, got your request let me know when you're free to talk about the trip.`;
+    const notes = lead.notes ? lead.notes.trim() : '';
+    const flag = lead.flag || '';
+    const phoneDisplay = lead.phone || '—';
+    const qqDoa = lead.doa ? (()=>{ const d=new Date(lead.doa); return String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')+'/'+d.getFullYear(); })() : '';
+    const qqUrl = 'https://airtable.com/appHT9Re4l53GO16t/shriG53J9mKJvNZ2a?prefill_Contact='+encodeURIComponent(name)+'&prefill_DOAText='+encodeURIComponent(qqDoa)+'&prefill_Nights='+(lead.nights||2)+'&prefill_People='+(lead.people||'')+'&prefill_CreateEssentialServices=Yes';
     return `
       <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 12px; margin-bottom: 8px;" class="lead-card">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
-          <div style="font-weight:700; color:#fff; font-size:13px; cursor:pointer;" onclick="window.open('https://airtable.com/appHT9Re4l53GO16t/tbl4P7tqdonXv5vcY/${lead.id}','_blank')">${name}</div>
-          <button onclick="toggleSMS('${lead.id}')" title="Send SMS" style="background:none;border:none;cursor:pointer;font-size:16px;padding:2px 4px;line-height:1;">💬</button>
+          <div style="font-weight:700; color:#fff; font-size:13px; cursor:pointer;" onclick="toggleExpand('${lead.id}')">${flag ? flag + ' ' : ''}${name} <span id="expand-arrow-${lead.id}" style="font-size:10px;color:#666;margin-left:4px;">▼</span></div>
+          <div style="display:flex;gap:4px;align-items:center;">
+            <a href="https://airtable.com/appHT9Re4l53GO16t/tbl4P7tqdonXv5vcY/${lead.id}" target="_blank" title="Open in Airtable" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;line-height:1;text-decoration:none;color:#aaa;">↗</a>
+            <a href="${qqUrl}" target="_blank" title="Quick Quote" style="background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.3);border-radius:3px;color:#fbbf24;font-size:9px;font-weight:700;padding:2px 5px;line-height:1.6;text-decoration:none;letter-spacing:0.5px;">QQ</a>
+            <button onclick="generateQuoteLink('${lead.id}')" title="Generate Quote Link" style="background:none;border:none;cursor:pointer;font-size:15px;padding:2px 4px;line-height:1;">🔗</button>
+            <button onclick="openItinerary('${lead.id}')" title="View Itinerary" style="background:none;border:none;cursor:pointer;font-size:15px;padding:2px 4px;line-height:1;">📁</button>
+            <button onclick="toggleJay('${lead.id}')" title="Ask Jay" style="background:none;border:none;cursor:pointer;font-size:16px;padding:2px 4px;line-height:1;">🤖</button>
+            <button onclick="toggleSMS('${lead.id}', '${phone}')" title="Send SMS" style="background:none;border:none;cursor:pointer;font-size:16px;padding:2px 4px;line-height:1;">💬</button>
+          </div>
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11px; color:#aaa; margin-bottom:6px;">
           <div>📅 <span style="color:#4ade80;">${doa}</span></div>
@@ -839,12 +1014,42 @@ function renderLeads(leads) {
           <div>📋 ${source}</div>
           <div>⏰ ${timeAgo}</div>
         </div>
+        <div style="margin-top:6px;">
+          <select onchange="updateStatus('${lead.id}', this.value, this)" style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.15);border-radius:4px;color:#aaa;padding:3px 6px;font-size:10px;cursor:pointer;width:100%;">
+            <option value="New Request" ${lead.status==='New Request'?'selected':''}>🔵 New Request</option>
+            <option value="talked to/ quoted" ${lead.status==='talked to/ quoted'?'selected':''}>🟡 Talked / Quoted</option>
+            <option value="Booked - Deposit" ${lead.status==='Booked - Deposit'?'selected':''}>🟢 Booked - Deposit</option>
+            <option value="Booked - Payment In Progress" ${lead.status==='Booked - Payment In Progress'?'selected':''}>🟢 Booked - Payment In Progress</option>
+            <option value="Booked - Payment Complete" ${lead.status==='Booked - Payment Complete'?'selected':''}>🟢 Booked - Payment Complete</option>
+            <option value="No Go - Coming to Town" ${lead.status==='No Go - Coming to Town'?'selected':''}>🔴 No Go - Coming to Town</option>
+            <option value="No Go - Not Coming to Town" ${lead.status==='No Go - Not Coming to Town'?'selected':''}>🔴 No Go - Not Coming to Town</option>
+            <option value="Past" ${lead.status==='Past'?'selected':''}>⚫ Past</option>
+            <option value="Attendee Only" ${lead.status==='Attendee Only'?'selected':''}>🟣 Attendee Only</option>
+            <option value="AirBNB Only" ${lead.status==='AirBNB Only'?'selected':''}>🟠 AirBNB Only</option>
+          </select>
+          <span id="status-feedback-${lead.id}" style="font-size:10px;color:#aaa;margin-left:4px;"></span>
+        </div>
+        <div id="expand-${lead.id}" data-record-id="${lead.id}" data-client-name="${name}" style="display:none; margin-top:10px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
+          <div style="font-size:11px;color:#aaa;margin-bottom:8px;">📞 <span style="color:#fff;">${phoneDisplay}</span></div>
+          ${notes ? `<div style="font-size:11px;color:#ccc;line-height:1.5;white-space:pre-wrap;">${notes.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>` : '<div style="font-size:11px;color:#555;font-style:italic;">No notes provided.</div>'}
+          <div id="itinerary-${lead.id}"></div>
+        </div>
         <div id="sms-${lead.id}" style="display:none; margin-top:10px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px;">
-          <textarea id="sms-text-${lead.id}" style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:#fff;padding:8px;font-size:12px;resize:vertical;min-height:60px;">${defaultMsg}</textarea>
-          <div style="display:flex;gap:8px;margin-top:6px;align-items:center;">
-            <button onclick="sendSMS('${lead.id}','${phone}')" style="background:#4ade80;border:none;border-radius:4px;color:#000;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;">Send SMS</button>
-            <button onclick="toggleSMS('${lead.id}')" style="background:rgba(255,255,255,0.1);border:none;border-radius:4px;color:#fff;padding:6px 12px;font-size:11px;cursor:pointer;">Cancel</button>
-            <span id="sms-status-${lead.id}" style="font-size:11px;color:#aaa;"></span>
+          <div id="sms-thread-${lead.id}" style="max-height:220px; overflow-y:auto; margin-bottom:8px; display:flex; flex-direction:column; gap:4px; padding:4px 0;">
+            <div style="text-align:center; color:#555; font-size:10px; font-style:italic;">Loading conversation...</div>
+          </div>
+          <div style="display:flex; gap:6px; align-items:flex-end;">
+            <input id="sms-text-${lead.id}" type="text" placeholder="${defaultMsg || 'Type a message...'}" style="flex:1; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.2); border-radius:18px; color:#fff; padding:8px 12px; font-size:12px;" onkeydown="if(event.key==='Enter') sendSMS('${lead.id}','${phone}')"/>
+            <button onclick="sendSMS('${lead.id}','${phone}')" style="background:#4ade80; border:none; border-radius:50%; color:#000; width:32px; height:32px; font-size:16px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center;">↑</button>
+          </div>
+          <span id="sms-status-${lead.id}" style="font-size:10px; color:#aaa; margin-top:4px; display:block;"></span>
+        </div>
+        <div id="jay-${lead.id}" style="display:none; margin-top:10px; border-top:1px solid rgba(99,102,241,0.3); padding-top:10px;">
+          <div style="font-size:10px;color:#6366f1;font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">🤖 Jay — Connected Montreal AI</div>
+          <div id="jay-msgs-${lead.id}" style="max-height:180px;overflow-y:auto;margin-bottom:8px;display:flex;flex-direction:column;gap:5px;"></div>
+          <div style="display:flex;gap:6px;">
+            <input id="jay-input-${lead.id}" type="text" placeholder="Ask Jay about this client..." style="flex:1;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:4px;color:#fff;padding:6px 8px;font-size:11px;" onkeydown="if(event.key==='Enter')askJay('${lead.id}', decodeURIComponent('${contextString}'))"/>
+            <button onclick="askJay('${lead.id}', decodeURIComponent('${contextString}'))" style="background:#6366f1;border:none;border-radius:4px;color:#fff;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;">Ask</button>
           </div>
         </div>
       </div>
@@ -858,26 +1063,100 @@ function renderLeads(leads) {
   // Follow-ups Needed — "talked to/ quoted"
   const followupsContainer = document.getElementById('leads-list-rows');
   if (followupsContainer) {
-    const followups = leads.filter(lead => lead.status === 'talked to/ quoted');
+    const followups = leads
+      .filter(lead => lead.status === 'talked to/ quoted')
+      .sort((a, b) => new Date(b.status_updated || 0) - new Date(a.status_updated || 0));
     document.getElementById('followup-count').textContent = followups.length;
 
     const followHtml = followups.map(lead => {
       const name = `${lead.first_name} ${lead.last_name}`.trim();
+      const flag = lead.flag || '';
       const doa = lead.doa ? new Date(lead.doa).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}) : 'TBD';
       const people = lead.people ? `${lead.people}p` : '?';
-      const created = lead.created_on ? new Date(lead.created_on) : null;
-      let daysAgo = '?';
-      if (created) {
-        const diff = Math.floor((new Date() - created) / (1000*60*60*24));
-        daysAgo = diff === 0 ? 'today' : diff === 1 ? '1d' : `${diff}d`;
+      const phone = lead.phone || '';
+      const statusUpdated = lead.status_updated ? new Date(lead.status_updated) : null;
+      let quotedAgo = '?';
+      if (statusUpdated) {
+        const diff = Math.floor((new Date() - statusUpdated) / (1000*60*60*24));
+        quotedAgo = diff === 0 ? 'today' : diff === 1 ? '1d ago' : `${diff}d ago`;
       }
+      const grandTotal = lead.grand_total ? `$${Number(lead.grand_total).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0})}` : '—';
+      const contextString = encodeURIComponent(`Client: ${name} | Status: ${lead.status} | DOA: ${doa} | People: ${lead.people || '?'} | Phone: ${lead.phone || 'N/A'} | Total: ${grandTotal} | Nights: ${lead.nights || '?'} | Accommodation: ${lead.accommodation || 'TBD'} | Notes: ${(lead.notes||'').substring(0,200)}`);
       return `
-        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,107,107,0.2); border-radius: 6px; padding: 10px; margin-bottom: 6px; cursor: pointer;" onclick="window.open('https://airtable.com/appHT9Re4l53GO16t/tbl4P7tqdonXv5vcY/${lead.id}', '_blank')">
-          <div style="font-weight:700; color:#fff; font-size:13px; margin-bottom:4px;">${name}</div>
+        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,107,107,0.2); border-radius: 6px; padding: 10px; margin-bottom: 6px;" class="lead-card">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+            <div style="font-weight:700; color:#fff; font-size:13px; cursor:pointer;" onclick="toggleExpand('fu-${lead.id}')">${flag ? flag + ' ' : ''}${name} <span id="expand-arrow-fu-${lead.id}" style="font-size:10px;color:#666;margin-left:4px;">▼</span></div>
+            <div style="display:flex;gap:4px;align-items:center;">
+              <a href="https://airtable.com/appHT9Re4l53GO16t/tbl4P7tqdonXv5vcY/${lead.id}" target="_blank" title="Open in Airtable" style="color:#aaa;text-decoration:none;font-size:14px;padding:2px 4px;">↗</a>
+              <button onclick="generateQuoteLink('${lead.id}')" title="Generate Quote Link" style="background:none;border:none;cursor:pointer;font-size:15px;padding:2px 4px;line-height:1;">🔗</button>
+              <button onclick="openItinerary('${lead.id}')" title="View Itinerary" style="background:none;border:none;cursor:pointer;font-size:15px;padding:2px 4px;line-height:1;">📁</button>
+              <button onclick="toggleJay('fu-${lead.id}')" title="Ask Jay" style="background:none;border:none;cursor:pointer;font-size:16px;padding:2px 4px;line-height:1;">🤖</button>
+              <button onclick="toggleSMS('followup-${lead.id}', '${phone}')" title="Send SMS" style="background:none;border:none;cursor:pointer;font-size:16px;padding:2px 4px;line-height:1;">💬</button>
+            </div>
+          </div>
           <div style="display:flex; gap:10px; font-size:11px; color:#aaa;">
             <span>📅 <span style="color:#4ade80">${doa}</span></span>
             <span>👥 ${people}</span>
-            <span style="color:#ff6b6b">⏰ ${daysAgo}</span>
+            <span style="color:#ff6b6b">⏰ quoted ${quotedAgo}</span>
+          </div>
+          <div style="margin-top:6px;">
+            <select onchange="updateStatus('${lead.id}', this.value, this)" style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.15);border-radius:4px;color:#aaa;padding:3px 6px;font-size:10px;cursor:pointer;width:100%;">
+              <option value="New Request" ${lead.status==='New Request'?'selected':''}>🔵 New Request</option>
+              <option value="talked to/ quoted" ${lead.status==='talked to/ quoted'?'selected':''}>🟡 Talked / Quoted</option>
+              <option value="Booked - Deposit" ${lead.status==='Booked - Deposit'?'selected':''}>🟢 Booked - Deposit</option>
+              <option value="Booked - Payment In Progress" ${lead.status==='Booked - Payment In Progress'?'selected':''}>🟢 Booked - Payment In Progress</option>
+              <option value="Booked - Payment Complete" ${lead.status==='Booked - Payment Complete'?'selected':''}>🟢 Booked - Payment Complete</option>
+              <option value="No Go - Coming to Town" ${lead.status==='No Go - Coming to Town'?'selected':''}>🔴 No Go - Coming to Town</option>
+              <option value="No Go - Not Coming to Town" ${lead.status==='No Go - Not Coming to Town'?'selected':''}>🔴 No Go - Not Coming to Town</option>
+              <option value="Past" ${lead.status==='Past'?'selected':''}>⚫ Past</option>
+              <option value="Attendee Only" ${lead.status==='Attendee Only'?'selected':''}>🟣 Attendee Only</option>
+              <option value="AirBNB Only" ${lead.status==='AirBNB Only'?'selected':''}>🟠 AirBNB Only</option>
+            </select>
+            <span id="status-feedback-${lead.id}" style="font-size:10px;color:#aaa;margin-left:4px;"></span>
+          </div>
+          <div id="expand-fu-${lead.id}" data-record-id="${lead.id}" data-client-name="${name}" style="display:none; margin-top:8px; border-top:1px solid rgba(255,255,255,0.08); padding-top:8px; font-size:11px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
+              <div style="color:#aaa;">📞 <span style="color:#fff;">${phone || '—'}</span></div>
+              <div style="color:#aaa;">🌙 <span style="color:#fff;">${lead.nights ? lead.nights + ' nights' : '—'}</span></div>
+              <div style="color:#aaa;">🏠 <span style="color:#fff;">${lead.accommodation || '—'}</span></div>
+              <div style="color:#aaa;">🎯 <span style="color:#fff;">${lead.services ? 'Set ' + lead.services : '—'}</span></div>
+            </div>
+            <div id="itinerary-fu-${lead.id}"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px;background:rgba(255,255,255,0.04);border-radius:4px;padding:8px;">
+              <div style="text-align:center;">
+                <div style="color:#666;font-size:9px;text-transform:uppercase;letter-spacing:1px;">Total</div>
+                <div style="color:#4ade80;font-weight:700;font-size:13px;">${grandTotal}</div>
+              </div>
+              <div style="text-align:center;">
+                <div style="color:#666;font-size:9px;text-transform:uppercase;letter-spacing:1px;">Paid</div>
+                <div style="color:#fff;font-weight:700;font-size:13px;">${lead.amount_paid ? '$' + Number(lead.amount_paid).toLocaleString('en-US',{maximumFractionDigits:0}) : '—'}</div>
+              </div>
+              <div style="text-align:center;">
+                <div style="color:#666;font-size:9px;text-transform:uppercase;letter-spacing:1px;">Balance</div>
+                <div style="color:${lead.balance > 0 ? '#fbbf24' : '#4ade80'};font-weight:700;font-size:13px;">${lead.balance ? '$' + Number(lead.balance).toLocaleString('en-US',{maximumFractionDigits:0}) : '—'}</div>
+              </div>
+            </div>
+            ${lead.next_action ? `<div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.2);border-radius:4px;padding:6px;margin-bottom:6px;">⚡ <span style="color:#fbbf24;">${lead.next_action}</span></div>` : ''}
+            ${lead.crm_notes ? `<div style="color:#999;line-height:1.4;margin-bottom:4px;white-space:pre-wrap;">${lead.crm_notes.replace(/</g,'&lt;')}</div>` : ''}
+            ${lead.last_followup ? `<div style="color:#666;font-size:10px;">Last follow-up: ${new Date(lead.last_followup).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>` : ''}
+          </div>
+          <div id="sms-followup-${lead.id}" style="display:none; margin-top:10px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px;">
+            <div id="sms-thread-followup-${lead.id}" style="max-height:220px; overflow-y:auto; margin-bottom:8px; display:flex; flex-direction:column; gap:4px; padding:4px 0;">
+              <div style="text-align:center; color:#555; font-size:10px; font-style:italic;">Loading conversation...</div>
+            </div>
+            <div style="display:flex; gap:6px; align-items:flex-end;">
+              <input id="sms-text-followup-${lead.id}" type="text" placeholder="Type a message..." style="flex:1; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.2); border-radius:18px; color:#fff; padding:8px 12px; font-size:12px;" onkeydown="if(event.key==='Enter') sendSMS('followup-${lead.id}','${phone}')"/>
+              <button onclick="sendSMS('followup-${lead.id}','${phone}')" style="background:#4ade80; border:none; border-radius:50%; color:#000; width:32px; height:32px; font-size:16px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center;">↑</button>
+            </div>
+            <span id="sms-status-followup-${lead.id}" style="font-size:10px; color:#aaa; margin-top:4px; display:block;"></span>
+          </div>
+          <div id="jay-fu-${lead.id}" style="display:none; margin-top:10px; border-top:1px solid rgba(99,102,241,0.3); padding-top:10px;">
+            <div style="font-size:10px;color:#6366f1;font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">🤖 Jay — Connected Montreal AI</div>
+            <div id="jay-msgs-fu-${lead.id}" style="max-height:180px;overflow-y:auto;margin-bottom:8px;display:flex;flex-direction:column;gap:5px;"></div>
+            <div style="display:flex;gap:6px;">
+              <input id="jay-input-fu-${lead.id}" type="text" placeholder="Ask Jay about this client..." style="flex:1;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:4px;color:#fff;padding:6px 8px;font-size:11px;" onkeydown="if(event.key==='Enter')askJay('fu-${lead.id}', decodeURIComponent('${contextString}'))"/>
+              <button onclick="askJay('fu-${lead.id}', decodeURIComponent('${contextString}'))" style="background:#6366f1;border:none;border-radius:4px;color:#fff;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;">Ask</button>
+            </div>
           </div>
         </div>
       `;
@@ -887,16 +1166,214 @@ function renderLeads(leads) {
 }
 
 
-function toggleSMS(id) {
+function toggleExpand(id) {
+  const el = document.getElementById('expand-' + id);
+  const arrow = document.getElementById('expand-arrow-' + id);
+  const open = el.style.display === 'none';
+  el.style.display = open ? 'block' : 'none';
+  if (arrow) arrow.textContent = open ? '▲' : '▼';
+  if (open && el.dataset.recordId && !el.dataset.loaded) {
+    el.dataset.loaded = 'true';
+    loadClientItinerary(id, el.dataset.recordId, el.dataset.clientName || '');
+  }
+}
+
+async function loadClientItinerary(expandId, recordId, clientName) {
+  const container = document.getElementById('itinerary-' + expandId);
+  if (!container) return;
+  container.innerHTML = '<div style="color:#555;font-size:10px;font-style:italic;margin-top:8px;">Loading itinerary...</div>';
+  try {
+    const r = await fetch('/api/client-events?id=' + encodeURIComponent(recordId) + (clientName ? '&name=' + encodeURIComponent(clientName) : ''));
+    const d = await r.json();
+    if (!d.ok || !d.events.length) { container.innerHTML = ''; return; }
+    const days = {};
+    for (const ev of d.events) {
+      if (!days[ev.day]) days[ev.day] = { date: ev.date, events: [] };
+      days[ev.day].events.push(ev);
+    }
+    const sortedDays = Object.keys(days).map(Number).sort((a, b) => a - b);
+    let html = '<div style="margin-top:6px;margin-bottom:6px;border-top:1px solid rgba(255,255,255,0.08);padding-top:6px;">';
+    for (const dayNum of sortedDays) {
+      const { date, events } = days[dayNum];
+      const dateLabel = date ? new Date(date + 'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) : '';
+      html += `<div style="margin-bottom:4px;">
+        <div style="font-size:9px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">Day ${dayNum + 1}${dateLabel ? ' · ' + dateLabel : ''}</div>`;
+      for (const ev of events) {
+        const dot = ev.confirmed === 'Yes' ? '<span style="color:#4ade80;font-size:7px;margin-left:3px;">●</span>'
+                  : ev.confirmed === 'No'  ? '<span style="color:#ff6b6b;font-size:7px;margin-left:3px;">●</span>' : '';
+        const price = ev.total ? `<span style="color:#4ade80;font-size:10px;margin-left:auto;flex-shrink:0;">$${Number(ev.total).toLocaleString('en-US',{maximumFractionDigits:0})}</span>` : '';
+        html += `<div style="display:flex;align-items:center;gap:5px;padding:1px 0;line-height:1.3;">
+          <span style="font-size:9px;color:#666;width:48px;flex-shrink:0;">${ev.start_time || '—'}</span>
+          <span style="font-size:10px;color:#ccc;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${ev.name}${dot}</span>
+          ${(() => {
+            const qty = ev.quantity;
+            const qt = (ev.quantity_type || '').toLowerCase();
+            const hrs = ev.duration > 0 ? Math.round(ev.duration / 60 * 2) / 2 : 0;
+            const hStr = hrs > 0 ? `${hrs}h` : '';
+            if (qt.includes('performer') || qt.includes('girl') || qt.includes('host')) {
+              const gStr = qty > 0 ? `${qty}g` : '';
+              const badge = [gStr, hStr].filter(Boolean).join('·');
+              return badge ? `<span style="font-size:9px;color:#a78bfa;flex-shrink:0;">${badge}</span>` : '';
+            } else if (qt.includes('bottle') || qt.includes('hourly')) {
+              return qty > 1 ? `<span style="font-size:9px;color:#888;flex-shrink:0;">×${qty}</span>` : '';
+            } else if (hStr) {
+              return `<span style="font-size:9px;color:#888;flex-shrink:0;">${hStr}</span>`;
+            }
+            return '';
+          })()}
+          ${price}
+        </div>`;
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+    container.innerHTML = html;
+  } catch(e) { container.innerHTML = ''; }
+}
+
+async function toggleSMS(id, phone) {
   const el = document.getElementById('sms-' + id);
-  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  if (!el) return;
+  const isOpening = el.style.display === 'none';
+  el.style.display = isOpening ? 'block' : 'none';
+  if (isOpening && phone) {
+    await loadSMSThread(id, phone);
+    const thread = document.getElementById('sms-thread-' + id);
+    if (thread) thread.scrollTop = thread.scrollHeight;
+    const input = document.getElementById('sms-text-' + id);
+    if (input) input.focus();
+  }
+}
+
+async function loadSMSThread(id, phone) {
+  const thread = document.getElementById('sms-thread-' + id);
+  if (!thread || !phone) return;
+  thread.innerHTML = '<div style="text-align:center;color:#555;font-size:10px;font-style:italic;">Loading...</div>';
+  try {
+    const r = await fetch('/api/sms-history?to=' + encodeURIComponent(phone));
+    const d = await r.json();
+    if (!d.ok || !d.found || !d.messages.length) {
+      thread.innerHTML = '<div style="text-align:center;color:#555;font-size:10px;font-style:italic;">No messages yet.</div>';
+      return;
+    }
+    thread.innerHTML = d.messages.map(m => {
+      const isMe = m.sender === 'me';
+      const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString('en-US', {hour:'numeric',minute:'2-digit'}) : '';
+      return `<div style="display:flex; flex-direction:column; align-items:${isMe ? 'flex-end' : 'flex-start'}; margin-bottom:2px;">
+        <span style="background:${isMe ? '#4ade80' : 'rgba(255,255,255,0.12)'}; color:${isMe ? '#000' : '#e0e0e0'}; padding:6px 10px; border-radius:${isMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px'}; font-size:11px; max-width:85%; word-wrap:break-word;">${m.text.replace(/</g,'&lt;')}</span>
+        ${time ? `<span style="font-size:9px;color:#555;margin-top:1px;">${time}</span>` : ''}
+      </div>`;
+    }).join('');
+    thread.scrollTop = thread.scrollHeight;
+  } catch(e) {
+    thread.innerHTML = '<div style="text-align:center;color:#ff6b6b;font-size:10px;">Failed to load</div>';
+  }
+}
+
+// Jay chat — localStorage persistence, max 4 messages sent as context
+function jayLoad(id) {
+  try { return JSON.parse(localStorage.getItem('jay-' + id) || '[]'); } catch(e) { return []; }
+}
+function jaySave(id, history) {
+  try { localStorage.setItem('jay-' + id, JSON.stringify(history)); } catch(e) {}
+}
+function jayRenderHistory(id) {
+  const msgs = document.getElementById('jay-msgs-' + id);
+  if (!msgs) return;
+  const history = jayLoad(id);
+  if (!history.length) { msgs.innerHTML = '<div style="text-align:center;color:#555;font-size:10px;font-style:italic;">No conversation yet.</div>'; return; }
+  msgs.innerHTML = history.map(h => {
+    const isOren = h.role === 'oren';
+    return `<div style="text-align:${isOren?'right':'left'};margin-bottom:2px;">
+      <span style="background:${isOren?'rgba(99,102,241,0.3)':'rgba(255,255,255,0.08)'};color:${isOren?'#c7d2fe':'#e0e0e0'};padding:4px 8px;border-radius:8px;font-size:11px;display:inline-block;max-width:85%;white-space:pre-wrap;">${h.text.replace(/</g,'&lt;')}</span>
+    </div>`;
+  }).join('');
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+async function openItinerary(recordId) {
+  try {
+    const r = await fetch('/api/show-itinerary', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({id: recordId})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      window.open('https://airtable.com/appHT9Re4l53GO16t/tblLuq2c0C405bP3g/viwmSmu8oDNC2zDNX?blocks=hide', '_blank');
+    } else {
+      alert('Could not enable itinerary: ' + (d.error || 'Unknown error'));
+    }
+  } catch(e) {
+    alert('Network error');
+  }
+}
+
+function toggleJay(id) {
+  const el = document.getElementById('jay-' + id);
+  if (!el) return;
+  const opening = el.style.display === 'none';
+  el.style.display = opening ? 'block' : 'none';
+  if (opening) {
+    jayRenderHistory(id);
+    const input = document.getElementById('jay-input-' + id);
+    if (input) input.focus();
+    const msgs = document.getElementById('jay-msgs-' + id);
+    if (msgs) msgs.scrollTop = msgs.scrollHeight;
+  }
+}
+
+async function askJay(id, context) {
+  const input = document.getElementById('jay-input-' + id);
+  const msgs = document.getElementById('jay-msgs-' + id);
+  if (!input || !msgs) return;
+  const message = input.value.trim();
+  if (!message) return;
+  input.value = '';
+
+  const history = jayLoad(id);
+  // Append user message to UI immediately
+  msgs.innerHTML += `<div style="text-align:right;margin-bottom:2px;"><span style="background:rgba(99,102,241,0.3);color:#c7d2fe;padding:4px 8px;border-radius:8px;font-size:11px;display:inline-block;max-width:85%;">${message.replace(/</g,'&lt;')}</span></div>`;
+  const typingId = 'jt-' + id + '-' + Date.now();
+  msgs.innerHTML += `<div id="${typingId}"><span style="background:rgba(255,255,255,0.06);color:#888;padding:4px 8px;border-radius:8px;font-size:11px;font-style:italic;">Jay is thinking...</span></div>`;
+  msgs.scrollTop = msgs.scrollHeight;
+
+  // Only send last 4 entries (2 exchanges) to avoid bloating context
+  const recentHistory = history.slice(-4);
+
+  try {
+    const r = await fetch('/api/ask-jay', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ context, message, history: recentHistory })
+    });
+    const d = await r.json();
+    document.getElementById(typingId)?.remove();
+    if (d.ok) {
+      history.push({role:'oren', text: message});
+      history.push({role:'jay', text: d.response});
+      jaySave(id, history);
+      msgs.innerHTML += `<div style="text-align:left;margin-bottom:2px;"><span style="background:rgba(255,255,255,0.08);color:#e0e0e0;padding:4px 8px;border-radius:8px;font-size:11px;display:inline-block;max-width:85%;white-space:pre-wrap;">${d.response.replace(/</g,'&lt;')}</span></div>`;
+    } else {
+      msgs.innerHTML += `<div style="color:#ff6b6b;font-size:10px;padding:4px;">❌ ${(d.error||'Failed').replace(/</g,'&lt;')}</div>`;
+    }
+    msgs.scrollTop = msgs.scrollHeight;
+  } catch(e) {
+    document.getElementById(typingId)?.remove();
+    msgs.innerHTML += `<div style="color:#ff6b6b;font-size:10px;padding:4px;">❌ Network error</div>`;
+    msgs.scrollTop = msgs.scrollHeight;
+  }
 }
 
 async function sendSMS(id, phone) {
-  const msg = document.getElementById('sms-text-' + id).value;
+  const input = document.getElementById('sms-text-' + id);
   const status = document.getElementById('sms-status-' + id);
-  if (!phone) { status.textContent = '❌ No phone number'; status.style.color='#ff6b6b'; return; }
-  status.textContent = 'Sending...'; status.style.color = '#aaa';
+  const thread = document.getElementById('sms-thread-' + id);
+  const msg = input ? input.value.trim() : '';
+  if (!phone) { if(status) { status.textContent = '❌ No phone number'; status.style.color='#ff6b6b'; } return; }
+  if (!msg) return;
+  if (status) { status.textContent = 'Sending...'; status.style.color = '#aaa'; }
+  if (input) input.value = '';
   try {
     const r = await fetch('/api/send-sms', {
       method: 'POST',
@@ -905,13 +1382,39 @@ async function sendSMS(id, phone) {
     });
     const d = await r.json();
     if (d.ok) {
-      status.textContent = '✅ Sent!'; status.style.color = '#4ade80';
-      setTimeout(() => toggleSMS(id), 2000);
+      if (status) { status.textContent = '✅ Sent!'; setTimeout(() => { if(status) status.textContent=''; }, 2000); }
+      // Append sent message immediately
+      if (thread) {
+        thread.innerHTML += `<div style="display:flex;flex-direction:column;align-items:flex-end;margin-bottom:2px;"><span style="background:#4ade80;color:#000;padding:6px 10px;border-radius:14px 14px 4px 14px;font-size:11px;max-width:85%;word-wrap:break-word;">${msg.replace(/</g,'&lt;')}</span></div>`;
+        thread.scrollTop = thread.scrollHeight;
+      }
     } else {
-      status.textContent = '❌ ' + (d.error || 'Failed'); status.style.color = '#ff6b6b';
+      if (status) { status.textContent = '❌ ' + (d.error || 'Failed'); status.style.color = '#ff6b6b'; }
+      if (input) input.value = msg;
     }
   } catch(e) {
-    status.textContent = '❌ Network error'; status.style.color = '#ff6b6b';
+    if (status) { status.textContent = '❌ Network error'; status.style.color = '#ff6b6b'; }
+    if (input) input.value = msg;
+  }
+}
+
+async function updateStatus(id, status, selectEl) {
+  const feedback = document.getElementById('status-feedback-' + id);
+  if (feedback) { feedback.textContent = 'Saving...'; feedback.style.color = '#aaa'; }
+  try {
+    const r = await fetch('/api/update-status', {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({id, status})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      if (feedback) { feedback.textContent = '✅'; setTimeout(() => { feedback.textContent = ''; }, 2000); }
+    } else {
+      if (feedback) { feedback.textContent = '❌ ' + (d.error || 'Failed'); feedback.style.color = '#ff6b6b'; }
+    }
+  } catch(e) {
+    if (feedback) { feedback.textContent = '❌ Error'; feedback.style.color = '#ff6b6b'; }
   }
 }
 
@@ -1508,6 +2011,88 @@ fetchLiveData();
 
 // Refresh live data every 5 minutes
 setInterval(fetchLiveData, 300000);
+
+function switchTab(name, btn) {
+  document.querySelectorAll('[data-tab]').forEach(el => el.classList.remove('tab-active'));
+  document.querySelectorAll('.mobile-tab-btn').forEach(b => b.classList.remove('active'));
+  const panel = document.querySelector('[data-tab="' + name + '"]');
+  if (panel) panel.classList.add('tab-active');
+  if (btn) btn.classList.add('active');
+}
+
+// Set pipeline active on load
+document.addEventListener('DOMContentLoaded', () => {
+  const first = document.querySelector('[data-tab]');
+  if (first) first.classList.add('tab-active');
+});
+</script>
+
+<!-- Quote Link Modal -->
+<div id="quote-modal-overlay" onclick="closeQuoteModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:2000;align-items:center;justify-content:center;"></div>
+<div id="quote-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#111118;border:1px solid #2a2a3a;border-radius:12px;padding:28px;max-width:480px;width:90%;z-index:2001;box-shadow:0 20px 60px rgba(0,0,0,0.8);">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+    <div style="font-size:14px;font-weight:700;color:#fff;">🔗 Quote Link Generated</div>
+    <button onclick="closeQuoteModal()" style="background:none;border:none;color:#666;font-size:18px;cursor:pointer;line-height:1;padding:2px 4px;">✕</button>
+  </div>
+  <div style="margin-bottom:16px;">
+    <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:6px;">Shareable Link</div>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <input id="quote-url-field" readonly style="flex:1;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#c9a84c;padding:10px 12px;font-size:12px;font-family:monospace;" />
+      <button onclick="copyField('quote-url-field','copy-url-btn')" id="copy-url-btn" style="background:#1e1e2e;border:1px solid #2a2a4a;border-radius:6px;color:#aaa;padding:10px 14px;font-size:11px;cursor:pointer;white-space:nowrap;font-weight:600;">Copy</button>
+    </div>
+  </div>
+  <div style="margin-bottom:24px;">
+    <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:6px;">Client Password</div>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <input id="quote-pw-field" readonly style="flex:1;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;padding:10px 12px;font-size:20px;letter-spacing:8px;font-weight:700;font-family:monospace;" />
+      <button onclick="copyField('quote-pw-field','copy-pw-btn')" id="copy-pw-btn" style="background:#1e1e2e;border:1px solid #2a2a4a;border-radius:6px;color:#aaa;padding:10px 14px;font-size:11px;cursor:pointer;white-space:nowrap;font-weight:600;">Copy</button>
+    </div>
+  </div>
+  <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:8px;padding:12px;font-size:11px;color:#c9a84c;line-height:1.6;margin-bottom:16px;">
+    📋 <strong>Send both</strong> the link and the password to your client. The link won't work without the password.
+  </div>
+  <button onclick="closeQuoteModal()" style="width:100%;background:#1e1e2e;border:1px solid #2a2a4a;border-radius:6px;color:#aaa;padding:10px;font-size:12px;cursor:pointer;font-weight:600;">Done</button>
+</div>
+
+<script>
+async function generateQuoteLink(recordId) {
+  try {
+    const r = await fetch('/api/generate-quote-link', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({record_id: recordId})
+    });
+    const d = await r.json();
+    if (!d.ok) { alert('Failed to generate link: ' + (d.error || 'Unknown error')); return; }
+    document.getElementById('quote-url-field').value = d.url;
+    document.getElementById('quote-pw-field').value = d.password;
+    document.getElementById('copy-url-btn').textContent = 'Copy';
+    document.getElementById('copy-pw-btn').textContent = 'Copy';
+    document.getElementById('quote-modal-overlay').style.display = 'flex';
+    document.getElementById('quote-modal').style.display = 'block';
+  } catch(e) {
+    alert('Network error generating quote link.');
+  }
+}
+
+function closeQuoteModal() {
+  document.getElementById('quote-modal-overlay').style.display = 'none';
+  document.getElementById('quote-modal').style.display = 'none';
+}
+
+function copyField(fieldId, btnId) {
+  const field = document.getElementById(fieldId);
+  navigator.clipboard.writeText(field.value).then(() => {
+    const btn = document.getElementById(btnId);
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied!';
+    btn.style.color = '#4ade80';
+    setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 2000);
+  }).catch(() => {
+    field.select();
+    document.execCommand('copy');
+  });
+}
 </script>
 
 <!-- Chat Panel -->

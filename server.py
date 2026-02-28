@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from flask import Flask, request, jsonify, send_file, session, redirect, url_for, make_response
+from flask import Flask, request, jsonify, send_file, session, redirect, url_for, make_response, render_template
 from flask_cors import CORS
 import requests, json, os, time, uuid, hashlib
 from pathlib import Path
@@ -276,16 +276,109 @@ def fetch_client_record(record_id):
         return r.json().get("fields", {})
     return None
 
-def fetch_client_events(record_id):
+EXPERIENCE_TABLE = "tblHsIUTzp0LRGdYD"
+
+def fetch_accommodation_details(client_fields):
+    """Fetch accommodation house stats + PDF URL from the linked Accommodation event
+    and Experience records. Returns a dict with: bedrooms, beds, bathrooms,
+    accom_pdf, checkin, checkout, venue_address."""
+    result = {"bedrooms": None, "beds": None, "bathrooms": None,
+              "accom_pdf": "", "checkin": "", "checkout": "", "venue_address": ""}
+    if not AIRTABLE_TOKEN:
+        return result
+    headers = {"Authorization": f"Bearer {AIRTABLE_TOKEN}"}
+
+    # 1. Get stats from Experience record (tblHsIUTzp0LRGdYD)
+    exp_ids = client_fields.get("Accommodation", [])
+    exp_id  = exp_ids[0] if isinstance(exp_ids, list) and exp_ids else None
+    if exp_id:
+        try:
+            r = requests.get(
+                f"https://api.airtable.com/v0/{AIRTABLE_BASE}/{EXPERIENCE_TABLE}/{exp_id}",
+                headers=headers, timeout=10)
+            if r.ok:
+                ef = r.json().get("fields", {})
+                result["bedrooms"]  = ef.get("house bedrooms")
+                result["beds"]      = ef.get("Beds")
+                result["bathrooms"] = ef.get("bathrooms")
+        except Exception:
+            pass
+
+    # 2. Get PDF URL + address from accommodation event record (EVENTS_TABLE)
+    accom_link_ids = client_fields.get("Accommodation Link", [])
+    accom_link_id  = accom_link_ids[0] if isinstance(accom_link_ids, list) and accom_link_ids else None
+    if accom_link_id:
+        try:
+            r = requests.get(
+                f"https://api.airtable.com/v0/{AIRTABLE_BASE}/{EVENTS_TABLE}/{accom_link_id}",
+                headers=headers, timeout=10)
+            if r.ok:
+                af = r.json().get("fields", {})
+                desc_raw = af.get("Description", [""])
+                desc     = desc_raw[0] if isinstance(desc_raw, list) else desc_raw
+                # Extract PDF URL from description text
+                import re as _re_accom
+                pdf_match = _re_accom.search(r'https?://\S+\.pdf', str(desc))
+                if pdf_match:
+                    result["accom_pdf"] = pdf_match.group(0)
+                # Check-in / Check-out from the record
+                ci = af.get("Check In", [""])
+                co = af.get("Check Out", [""])
+                result["checkin"]  = ci[0] if isinstance(ci, list) and ci else ci
+                result["checkout"] = co[0] if isinstance(co, list) and co else co
+                # Venue address
+                va = af.get("Venue Address", [""])
+                result["venue_address"] = va[0] if isinstance(va, list) and va else va
+        except Exception:
+            pass
+
+    return result
+
+def fetch_client_events(record_id, client_fields=None):
+    """Fetch itinerary events for a client.
+    Uses Day 1/2/3/4 Link fields from the client record to get event IDs,
+    then fetches those event records directly from the events table."""
     if not AIRTABLE_TOKEN:
         return []
     headers = {"Authorization": f"Bearer {AIRTABLE_TOKEN}"}
-    formula = f"FIND('{record_id}', ARRAYJOIN({{Clients}}, ','))"
+
+    # Collect event record IDs from Day 1/2/3/4/5 Link fields
+    event_ids = []
+    if client_fields:
+        for day_num in range(1, 8):
+            field = f"Day {day_num} Link"
+            ids = client_fields.get(field, [])
+            if isinstance(ids, list):
+                event_ids.extend(ids)
+        # Also include Essential Services and any Accommodation Link events
+        # (skip — essential services shown separately)
+
+    if not event_ids:
+        # Fallback: filter by Party Main Contact
+        formula = f"FIND('{record_id}', ARRAYJOIN({{Party Main Contact}}, ','))"
+        params = [
+            ("filterByFormula", formula),
+            ("sort[0][field]", "Day Number"),
+            ("sort[0][direction]", "asc"),
+            ("sort[1][field]", "24 Hour Clock"),
+            ("sort[1][direction]", "asc"),
+        ]
+        r = requests.get(
+            f"https://api.airtable.com/v0/{AIRTABLE_BASE}/{EVENTS_TABLE}",
+            headers=headers, params=params, timeout=15
+        )
+        if r.ok:
+            return [{**rec.get("fields", {}), "_record_id": rec.get("id", "")} for rec in r.json().get("records", [])]
+        return []
+
+    # Fetch specific event records by ID using OR formula
+    id_conditions = " ,".join([f"RECORD_ID()='{eid}'" for eid in event_ids])
+    formula = f"OR({id_conditions})"
     params = [
         ("filterByFormula", formula),
         ("sort[0][field]", "Day Number"),
         ("sort[0][direction]", "asc"),
-        ("sort[1][field]", "Start Time"),
+        ("sort[1][field]", "24 Hour Clock"),
         ("sort[1][direction]", "asc"),
     ]
     r = requests.get(
@@ -293,7 +386,7 @@ def fetch_client_events(record_id):
         headers=headers, params=params, timeout=15
     )
     if r.ok:
-        return [rec.get("fields", {}) for rec in r.json().get("records", [])]
+        return [{**rec.get("fields", {}), "_record_id": rec.get("id", "")} for rec in r.json().get("records", [])]
     return []
 
 @app.route("/generate-quote", methods=["POST"])
@@ -415,6 +508,96 @@ def quote_auth(token):
         return jsonify({"ok": True})
     return jsonify({"ok": False, "error": "Wrong password"}), 401
 
+@app.route("/quote/<token>/update-event", methods=["POST"])
+def quote_update_event(token):
+    tokens = load_tokens()
+    if token not in tokens:
+        return jsonify({"ok": False, "error": "Invalid token"}), 404
+    if not session.get(f"quote_{token}"):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    body = request.json or {}
+    event_id  = body.get("event_id", "")
+    start_time = body.get("start_time", "")
+    new_day   = body.get("day_num")  # 1-indexed from client
+    if not event_id:
+        return jsonify({"ok": False, "error": "event_id required"}), 400
+    if not AIRTABLE_TOKEN:
+        return jsonify({"ok": False, "error": "No Airtable token"}), 500
+    headers = {"Authorization": f"Bearer {AIRTABLE_TOKEN}", "Content-Type": "application/json"}
+    patch_fields = {}
+    if start_time:
+        patch_fields["Manual Start Time"] = start_time
+    quantity = body.get("quantity")
+    duration = body.get("duration")
+    if quantity is not None:
+        try:
+            patch_fields["Manu Quantity"] = int(quantity)
+        except (ValueError, TypeError):
+            pass
+    if duration is not None:
+        try:
+            patch_fields["Manual Duration"] = float(duration)
+        except (ValueError, TypeError):
+            pass
+    if new_day is not None:
+        # Look up date for this day from client record
+        record_id = tokens[token]["record_id"]
+        client_fields = fetch_client_record(record_id) or {}
+        day_field = f"Day {new_day} Date"
+        raw_date = client_fields.get(day_field, "")
+        if raw_date:
+            # Parse "Day N-Fri, Aug 07, 2026" → ISO "2026-08-07"
+            import re as _re3
+            from datetime import datetime as _dt
+            parts = _re3.split(r'-', raw_date, maxsplit=1)
+            date_str = parts[1].strip() if len(parts) > 1 else raw_date
+            try:
+                patch_fields["Date"] = _dt.strptime(date_str, "%a, %b %d, %Y").strftime("%Y-%m-%d")
+            except Exception:
+                patch_fields["Date"] = date_str
+    if not patch_fields:
+        return jsonify({"ok": False, "error": "Nothing to update"}), 400
+    r = requests.patch(
+        f"https://api.airtable.com/v0/{AIRTABLE_BASE}/{EVENTS_TABLE}/{event_id}",
+        headers=headers,
+        json={"fields": patch_fields},
+        timeout=15
+    )
+    if r.ok:
+        return jsonify({"ok": True})
+    return jsonify({"ok": False, "error": r.text}), 500
+
+@app.route("/quote/<token>/update-field", methods=["POST"])
+def quote_update_field(token):
+    tokens = load_tokens()
+    if token not in tokens:
+        return jsonify({"ok": False, "error": "Invalid token"}), 404
+    if not session.get(f"quote_{token}"):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    body = request.json or {}
+    field = body.get("field")
+    value = body.get("value")
+    ALLOWED_FIELDS = {"People": int}
+    if field not in ALLOWED_FIELDS:
+        return jsonify({"ok": False, "error": "Field not allowed"}), 400
+    try:
+        value = ALLOWED_FIELDS[field](value)
+    except (ValueError, TypeError):
+        return jsonify({"ok": False, "error": "Invalid value"}), 400
+    record_id = tokens[token]["record_id"]
+    if not AIRTABLE_TOKEN:
+        return jsonify({"ok": False, "error": "No Airtable token"}), 500
+    headers = {"Authorization": f"Bearer {AIRTABLE_TOKEN}", "Content-Type": "application/json"}
+    r = requests.patch(
+        f"https://api.airtable.com/v0/{AIRTABLE_BASE}/{AIRTABLE_TABLE}/{record_id}",
+        headers=headers,
+        json={"fields": {field: value}},
+        timeout=15
+    )
+    if r.ok:
+        return jsonify({"ok": True})
+    return jsonify({"ok": False, "error": r.text}), 500
+
 @app.route("/quote/<token>/view", methods=["GET"])
 def quote_view(token):
     tokens = load_tokens()
@@ -425,427 +608,194 @@ def quote_view(token):
 
     record_id = tokens[token]["record_id"]
     fields = fetch_client_record(record_id) or {}
-    events  = fetch_client_events(record_id)
+    raw_events = fetch_client_events(record_id, client_fields=fields)
+    accom_details = fetch_accommodation_details(fields)
+
+    def _arr(val, default=""):
+        """Unwrap single-element Airtable arrays."""
+        if isinstance(val, list):
+            return val[0] if val else default
+        return val if val is not None else default
 
     # ── Client fields ──────────────────────────────────────────
-    first   = fields.get("First Name", "")
-    last    = fields.get("Last Name", "")
-    doa     = fields.get("DOA", "")
-    people  = fields.get("People", "")
-    nights  = fields.get("Nights", "")
+    first      = fields.get("First Name", "")
+    last       = fields.get("Last Name", "")
+    # Use DOAText (formatted) or fall back to raw DOA
+    doa        = fields.get("DOAText", "") or fields.get("DOA", "")
+    people     = fields.get("People", "")
+    nights     = fields.get("Nights", "")
     accom_name = fields.get("Party Accommodation", "")
-    accom_addr = fields.get("Accommodation Address", "")
+    # Accommodation address + Google Maps URL
+    accom_addr = accom_details.get("venue_address") or _arr(fields.get("Accommodation Address", ""))
+    if accom_addr:
+        import urllib.parse as _urlparse
+        maps_query = _urlparse.quote(accom_addr + ", Montreal, QC")
+        accom_maps_url = f"https://www.google.com/maps/search/?api=1&query={maps_query}"
+    else:
+        accom_maps_url = ""
+    # House stats
+    accom_bedrooms  = accom_details.get("bedrooms")
+    accom_beds      = accom_details.get("beds")
+    accom_bathrooms = accom_details.get("bathrooms")
     essential  = fields.get("Essential Service Set", "")
+    # Check-in/out from accommodation record (fall back to defaults)
+    checkin  = accom_details.get("checkin") or fields.get("Check In Time", "3:00 PM")
+    checkout = accom_details.get("checkout") or fields.get("Check Out Time", "11:00 AM")
+    accom_desc   = ""
+    # Build a day → formatted date map from Day N Date fields ("Day 1-Thu, Aug 06, 2026")
+    day_dates = {}
+    for n in range(1, 8):
+        raw = fields.get(f"Day {n} Date", "")
+        if raw:
+            # Strip "Day N-" prefix → "Thu, Aug 06, 2026"
+            parts = raw.split("-", 1)
+            day_dates[n] = parts[1].strip() if len(parts) > 1 else raw
 
     # Accommodation photo (first attachment)
     accom_photos = fields.get("Accommodation Picture", [])
     accom_photo_url = accom_photos[0].get("url", "") if accom_photos else ""
 
-    # Accommodation PDF (link stored in Accommodation Link field)
-    accom_pdf = fields.get("Accommodation Link", "")
+    # ── Build events list for template ────────────────────────
+    events = []
+    for ev in raw_events:
+        day_num  = ev.get("Day Number", "")
+        ev_date  = ev.get("Date", "")
+        import re as _re
+        def _first(val, default=""):
+            return val[0] if isinstance(val, list) and val else (val if not isinstance(val, list) else default)
+        ev_name  = _first(ev.get("Name (from Experience)", ""))
+        ev_type  = _first(ev.get("Type", ""))
+        ev_start = _first(ev.get("Start Time", ""))
+        ev_desc  = _first(ev.get("Description for Documont", ""))
+        ev_desc  = _re.sub(r'<[^>]+>', '', ev_desc).strip().lstrip('•·\t ')
+        # Day number: Airtable is 0-indexed, display as 1-indexed
+        raw_day_num = ev.get("Day Number", 0)
+        display_day = (raw_day_num or 0) + 1
+        # Use pre-built day date string from client fields ("Thu, Aug 06, 2026")
+        ev_date = day_dates.get(display_day, ev.get("Date", ""))
+        events.append({
+            "day_num":     display_day,
+            "date":        ev_date,
+            "name":        ev_name or ev_type,
+            "subtitle":    ev.get("Quote Text", ""),
+            "start_time":  ev_start,
+            "description": ev_desc,
+            "record_id":   ev.get("_record_id", ""),
+            "min_time":    _first(ev.get("Earliest Start Time", "")),
+            "max_time":    _first(ev.get("Latest Start Time", "")),
+            "quantity":    _first(ev.get("Quantity", "")) or "",
+            "duration":    _first(ev.get("Duration", "")) or "",
+            "quantity_type": _first(ev.get("Quantity Type", "")) or "",
+            "quantity_default": _first(ev.get("Quantity Default", "")) or "",
+        })
 
-    # Payment link
-    cad_form = fields.get("CAD Form URL", "")
+    # ── Accommodation ──────────────────────────────────────────
+    accom_photos    = fields.get("Accommodation Picture", [])
+    accom_photo_url = accom_photos[0].get("url", "") if accom_photos else ""
+    # Accommodation Link is a linked record — no direct PDF URL in Airtable
+    # Use Fillout Rental Agreement link as the "view details" link if available
+    accom_pdf       = fields.get("Accommodation PDF URL", "") or ""
 
-    # Pricing
+    # PDF link — parse from accommodation event record description
+    accom_pdf = accom_details.get("accom_pdf") or fields.get("Accommodation PDF URL", "") or ""
+
+    # Payment link — use prefilled down payment URL (has invoice # baked in)
+    cad_form = (fields.get("Benjiform Prefill Down Payment", "")
+                or fields.get("Benjiform Prefill", "")
+                or fields.get("CAD Form URL", ""))
+
+    # ── Pricing ────────────────────────────────────────────────
     service_subtotal = format_cad(fields.get("Subtotal"))
     service_hst      = format_cad(fields.get("HST"))
     service_qst      = format_cad(fields.get("QST"))
     service_cc_fee   = format_cad(fields.get("Credit Card Fee"))
     service_total    = format_cad(fields.get("Service Total"))
+    service_pp       = format_cad(fields.get("Service Total Per Person"))
 
     accom_subtotal   = format_cad(fields.get("Accommodation Subtotal"))
     accom_hst        = format_cad(fields.get("Accommodation HST"))
     accom_qst        = format_cad(fields.get("Accommodation QST"))
     accom_hosp_tax   = format_cad(fields.get("Accommodation Hospitality Tax"))
+    accom_cleaning   = format_cad(fields.get("Cleaning Fee"))          # field is "Cleaning Fee" not "Accommodation Cleaning Fee"
     accom_cc_fee     = format_cad(fields.get("Accommodation Credit Card Fee"))
     accom_total      = format_cad(fields.get("Accommodation Total"))
+    accom_pp         = format_cad(fields.get("Accommodation per Person"))  # lowercase "per"
 
-    grand_total      = format_cad(fields.get("Grand Total"))
-    per_person       = format_cad(fields.get("Total Per Person"))
-    down_payment     = format_cad(fields.get("Total Down Payment"))
-    accom_downpay    = format_cad(fields.get("Accommodation Downpayment"))
-
-    # ── Build itinerary HTML ───────────────────────────────────
-    itinerary_html = ""
-    current_day = None
-    for ev in events:
-        day_num  = ev.get("Day Number", "")
-        ev_date  = ev.get("Date", "")
-        ev_name  = ev.get("Name (from Experience)", [None])[0] if isinstance(ev.get("Name (from Experience)"), list) else ev.get("Name (from Experience)", "")
-        ev_start = ev.get("Start Time", "")
-        ev_type  = ev.get("Type", "")
-        ev_desc  = ev.get("Description for Documont", "")
-        ev_total = ev.get("Total (tax in)", "")
-        emoji    = EVENT_EMOJIS.get(ev_type, "✨")
-
-        if day_num != current_day:
-            if current_day is not None:
-                itinerary_html += "</div>"  # close day group
-            current_day = day_num
-            day_label = f"Day {day_num}" if day_num else "Schedule"
-            if ev_date:
-                day_label += f" — {ev_date}"
-            itinerary_html += f'<div class="day-group"><div class="day-label">{day_label}</div>'
-
-        ev_time_html  = '<div class="event-time">' + ev_start + '</div>' if ev_start else ""
-        ev_price_html = '<div class="event-price">' + format_cad(ev_total) + '</div>' if ev_total else ""
-        ev_desc_html  = '<div class="event-desc">' + ev_desc + '</div>' if ev_desc else ""
-        itinerary_html += (
-            '<div class="event-card">'
-            '<div class="event-top">'
-            '<span class="event-emoji">' + emoji + '</span>'
-            '<div class="event-info">'
-            '<div class="event-name">' + (ev_name or ev_type) + '</div>'
-            + ev_time_html +
-            '</div>'
-            + ev_price_html +
-            '</div>'
-            + ev_desc_html +
-            '</div>'
-        )
-
-    if current_day is not None:
-        itinerary_html += "</div>"  # close last day group
-
-    # ── Accommodations section ─────────────────────────────────
-    accom_photo_html = ""
-    if accom_photo_url:
-        if accom_pdf:
-            accom_photo_html = f'<a href="{accom_pdf}" target="_blank" rel="noopener"><img class="accom-photo" src="{accom_photo_url}" alt="{accom_name}"><div class="photo-badge">📄 View PDF</div></a>'
-        else:
-            accom_photo_html = f'<img class="accom-photo" src="{accom_photo_url}" alt="{accom_name}">'
-
-    maps_url = f"https://maps.google.com/?q={requests.utils.quote(accom_addr)}" if accom_addr else ""
+    grand_total   = format_cad(fields.get("Grand Total"))
+    per_person    = format_cad(fields.get("Total Per Person"))
+    down_payment  = format_cad(fields.get("Total Down Payment") or fields.get("Down Payment"))
+    accom_downpay = format_cad(fields.get("Accommodation Downpayment"))
 
     # ── Essential services list ────────────────────────────────
-    services_html = ""
-    if essential:
-        items = [s.strip() for s in essential.replace(",", "\n").split("\n") if s.strip()]
-        services_html = "".join(f"<li>{item}</li>" for item in items)
+    import re as _re2
+    services_list = []
+    # Try to parse from text field first
+    if isinstance(essential, str) and len(essential) > 5:
+        services_list = [s.strip() for s in essential.replace(",", "\n").split("\n") if s.strip()]
+    # If that failed, pull from the linked Essential Services event records
+    if not services_list:
+        svc_ids = fields.get("Essential Services", [])
+        if svc_ids and AIRTABLE_TOKEN:
+            for sid in svc_ids[:1]:  # just first record — it has the full description
+                try:
+                    sr = requests.get(
+                        f"https://api.airtable.com/v0/{AIRTABLE_BASE}/{EVENTS_TABLE}/{sid}",
+                        headers={"Authorization": f"Bearer {AIRTABLE_TOKEN}"}, timeout=10
+                    )
+                    if sr.ok:
+                        sfields = sr.json().get("fields", {})
+                        desc_raw = sfields.get("Description", [""])
+                        desc = desc_raw[0] if isinstance(desc_raw, list) else desc_raw
+                        desc = _re2.sub(r'<[^>]+>', '', str(desc))
+                        for line in desc.split("\n"):
+                            clean = _re2.sub(r'^[\s✔•\t]+', '', line).strip()
+                            if clean:
+                                services_list.append(clean)
+                except Exception:
+                    pass
+    # Hardcoded fallback
+    if not services_list:
+        services_list = [
+            "Our legendary bachelor party planning service and expertise — We ensure you have the best time.",
+            "Customized itinerary — We will plan out the trip based on your input.",
+            "Travel Concierge — Get immediate support while in town.",
+            "Dinner reservations.",
+            "No cover charges or waiting in line at the night clubs.",
+            "Tips for doormen at nightclubs and strip clubs.",
+        ]
 
-    # ── Pre-compute conditional sections (avoid backslash in f-string exprs) ──
-    full_name         = (first + " " + last).strip()
-    accom_name_html   = "<h3>" + accom_name + "</h3>" if accom_name else ""
-    accom_photo_wrap  = '<div class="accom-photo-wrap">' + accom_photo_html + "</div>" if accom_photo_html else ""
-    accom_addr_html   = '<a class="addr-link" href="' + maps_url + '" target="_blank" rel="noopener">\U0001f4cd ' + accom_addr + "</a>" if accom_addr else ""
-    services_section  = (
-        '<div class="section">'
-        '<div class="section-title">What\'s Included</div>'
-        '<ul class="services-list">' + services_html + "</ul>"
-        "</div>"
-    ) if services_html else ""
-    itinerary_section = (
-        '<div class="section">'
-        '<div class="section-title">Your Itinerary</div>'
-        + itinerary_html +
-        "</div>"
-    ) if itinerary_html else ""
-    cta_btn_html      = '<a class="cta-btn" href="' + cad_form + '" target="_blank" rel="noopener">Book My Trip \U0001f389</a>' if cad_form else '<div style="color:#555;font-size:14px;">Payment link coming soon — text us to book!</div>'
-    down_note_html    = '<div class="down-note">Deposit: ' + down_payment + "</div>" if down_payment != "\u2014" else ""
-    down_pay_row      = '<div class="per-person" style="margin-top:6px;">Down payment to book: <strong>' + down_payment + "</strong></div>" if down_payment != "\u2014" else ""
+    personal_host = "Personal host: your man on the ground for the weekend. They will escort you into the venues and take care of you during your trip."
 
-    # ── Full portal HTML ───────────────────────────────────────
     current_url = request.url
+    total_days = max((e["day_num"] for e in events), default=1)
 
-    html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{first} {last} — Connected Montreal Quote</title>
-<style>
-  /* ── Reset & base ───────────────────── */
-  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
-         background: #0a0a0a; color: #f0f0f0; font-size: 15px; line-height: 1.6;
-         padding-bottom: 80px; }}
-  a {{ color: inherit; text-decoration: none; }}
-
-  /* ── Hero ───────────────────────────── */
-  .hero {{ width: 100%; display: block; }}
-  .hero img {{ width: 100%; display: block; max-height: 260px; object-fit: cover; }}
-
-  /* ── AS SEEN IN ─────────────────────── */
-  .press-bar {{ background: #111; border-bottom: 1px solid #222;
-               padding: 14px 20px; text-align: center; }}
-  .press-label {{ font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
-                 text-transform: uppercase; color: #555; margin-bottom: 10px; }}
-  .press-logos {{ display: flex; justify-content: center; align-items: center;
-                  gap: 28px; flex-wrap: wrap; }}
-  .press-logos img {{ height: 18px; opacity: 0.55; filter: grayscale(1) brightness(2); }}
-
-  /* ── Section chrome ─────────────────── */
-  .section {{ padding: 28px 20px; border-bottom: 1px solid #1c1c1c; }}
-  .section-title {{ font-size: 11px; font-weight: 700; letter-spacing: 2px;
-                    text-transform: uppercase; color: #c9a84c; margin-bottom: 16px; }}
-  h2 {{ font-size: 22px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 4px; }}
-  h3 {{ font-size: 16px; font-weight: 700; margin-bottom: 8px; }}
-
-  /* ── Client info band ───────────────── */
-  .info-band {{ display: flex; gap: 0; }}
-  .info-chip {{ flex: 1; background: #161616; border: 1px solid #222; padding: 14px 16px;
-                text-align: center; }}
-  .info-chip:first-child {{ border-radius: 10px 0 0 10px; }}
-  .info-chip:last-child  {{ border-radius: 0 10px 10px 0; border-left: 0; }}
-  .chip-val {{ font-size: 18px; font-weight: 800; letter-spacing: -0.3px; }}
-  .chip-lbl {{ font-size: 11px; color: #666; margin-top: 2px; text-transform: uppercase;
-               letter-spacing: 0.5px; }}
-
-  /* ── Accommodation ──────────────────── */
-  .accom-photo-wrap {{ position: relative; border-radius: 12px; overflow: hidden;
-                       margin-bottom: 16px; }}
-  .accom-photo {{ width: 100%; display: block; max-height: 220px; object-fit: cover; }}
-  .photo-badge {{ position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.75);
-                  color: #fff; font-size: 12px; font-weight: 600; padding: 5px 10px;
-                  border-radius: 20px; backdrop-filter: blur(4px); }}
-  .accom-meta {{ display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }}
-  .accom-meta-item {{ background: #161616; border: 1px solid #222; border-radius: 8px;
-                      padding: 10px 12px; }}
-  .meta-lbl {{ font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }}
-  .meta-val {{ font-size: 14px; font-weight: 700; margin-top: 2px; }}
-  .addr-link {{ color: #c9a84c; font-size: 14px; font-weight: 600;
-                display: inline-flex; align-items: center; gap: 4px; margin-top: 10px; }}
-
-  /* ── Services list ──────────────────── */
-  .services-list {{ list-style: none; display: flex; flex-direction: column; gap: 8px; }}
-  .services-list li {{ display: flex; align-items: flex-start; gap: 10px; font-size: 14px;
-                       color: #ccc; }}
-  .services-list li::before {{ content: "✓"; color: #c9a84c; font-weight: 800;
-                                flex-shrink: 0; margin-top: 1px; }}
-
-  /* ── Itinerary ──────────────────────── */
-  .day-group {{ margin-bottom: 20px; }}
-  .day-label {{ font-size: 12px; font-weight: 700; letter-spacing: 1px;
-                text-transform: uppercase; color: #c9a84c; margin-bottom: 10px; }}
-  .event-card {{ background: #161616; border: 1px solid #222; border-radius: 10px;
-                 padding: 14px; margin-bottom: 8px; }}
-  .event-top {{ display: flex; align-items: flex-start; gap: 12px; }}
-  .event-emoji {{ font-size: 22px; flex-shrink: 0; }}
-  .event-info {{ flex: 1; min-width: 0; }}
-  .event-name {{ font-size: 15px; font-weight: 700; }}
-  .event-time {{ font-size: 12px; color: #888; margin-top: 2px; }}
-  .event-price {{ font-size: 14px; font-weight: 800; color: #c9a84c; white-space: nowrap; }}
-  .event-desc {{ font-size: 13px; color: #999; margin-top: 8px; line-height: 1.5;
-                 border-top: 1px solid #222; padding-top: 8px; }}
-
-  /* ── Pricing table ──────────────────── */
-  .price-table {{ width: 100%; }}
-  .price-row {{ display: flex; justify-content: space-between; align-items: center;
-                padding: 9px 0; border-bottom: 1px solid #1a1a1a; font-size: 14px; }}
-  .price-row:last-child {{ border-bottom: none; }}
-  .price-row .label {{ color: #aaa; }}
-  .price-row .val {{ font-weight: 700; }}
-  .price-group-head {{ font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
-                       text-transform: uppercase; color: #c9a84c; padding: 14px 0 6px; }}
-  .price-total-row {{ display: flex; justify-content: space-between; align-items: center;
-                      background: #c9a84c; border-radius: 10px; padding: 14px 16px;
-                      margin-top: 16px; }}
-  .price-total-row .label {{ font-size: 14px; font-weight: 700; color: #000; }}
-  .price-total-row .val   {{ font-size: 20px; font-weight: 900; color: #000; }}
-  .per-person {{ text-align: center; color: #888; font-size: 13px; margin-top: 10px; }}
-  .per-person strong {{ color: #f0f0f0; }}
-
-  /* ── Next steps ─────────────────────── */
-  .steps {{ display: flex; flex-direction: column; gap: 14px; }}
-  .step  {{ display: flex; gap: 14px; align-items: flex-start; }}
-  .step-num {{ width: 32px; height: 32px; background: #c9a84c; border-radius: 50%;
-               display: flex; align-items: center; justify-content: center;
-               font-size: 14px; font-weight: 800; color: #000; flex-shrink: 0; }}
-  .step-text h3 {{ font-size: 15px; font-weight: 700; margin-bottom: 2px; }}
-  .step-text p  {{ font-size: 13px; color: #888; }}
-
-  /* ── CTA ────────────────────────────── */
-  .cta-section {{ padding: 32px 20px; text-align: center; }}
-  .cta-section p {{ color: #888; font-size: 14px; margin-bottom: 24px; line-height: 1.5; }}
-  .cta-btn {{ display: inline-block; background: #c9a84c; color: #000;
-              font-size: 17px; font-weight: 800; padding: 17px 40px;
-              border-radius: 12px; letter-spacing: -0.2px; width: 100%;
-              transition: opacity .2s; }}
-  .cta-btn:hover {{ opacity: 0.88; }}
-  .down-note {{ font-size: 12px; color: #666; margin-top: 10px; }}
-
-  /* ── Sticky contact bar ─────────────── */
-  .contact-bar {{ position: fixed; bottom: 0; left: 0; right: 0;
-                  background: #111; border-top: 1px solid #222;
-                  display: flex; z-index: 100; }}
-  .contact-btn {{ flex: 1; display: flex; flex-direction: column; align-items: center;
-                  justify-content: center; padding: 10px 0; font-size: 11px;
-                  font-weight: 600; color: #aaa; letter-spacing: 0.3px;
-                  transition: color .15s; }}
-  .contact-btn:hover {{ color: #fff; }}
-  .contact-btn .icon {{ font-size: 20px; margin-bottom: 2px; }}
-  .contact-btn + .contact-btn {{ border-left: 1px solid #222; }}
-
-  /* ── Desktop ─────────────────────────── */
-  @media (min-width: 640px) {{
-    body {{ max-width: 680px; margin: 0 auto; }}
-    .hero img {{ max-height: 360px; border-radius: 0 0 16px 16px; }}
-    .section {{ padding: 32px 28px; }}
-  }}
-</style>
-</head>
-<body>
-
-<!-- HERO -->
-<div class="hero">
-  <img src="https://documint.s3.amazonaws.com/accounts/61db2ecae636260004b12f5b/assets/686c1ab7930cb27324a72381"
-       alt="Connected Montreal">
-</div>
-
-<!-- AS SEEN IN -->
-<div class="press-bar">
-  <div class="press-label">As Seen In</div>
-  <div class="press-logos">
-    <img src="https://documint.s3.amazonaws.com/accounts/61db2ecae636260004b12f5b/assets/64cc14cbc102014a1f1fbf2f" alt="Eater">
-    <img src="https://documint.s3.amazonaws.com/accounts/61db2ecae636260004b12f5b/assets/64cc14cbc102014a1f1fbf30" alt="Fast Company">
-    <img src="https://documint.s3.amazonaws.com/accounts/61db2ecae636260004b12f5b/assets/64cc14cbc102014a1f1fbf31" alt="Vice">
-  </div>
-</div>
-
-<!-- CLIENT INFO BAND -->
-<div class="section">
-  <div class="section-title">Your Trip</div>
-  <h2>{first}'s Montreal Bachelor Party</h2>
-  <p style="color:#888;margin:6px 0 20px;font-size:14px;">{full_name}</p>
-  <div class="info-band">
-    <div class="info-chip">
-      <div class="chip-val">{doa or '—'}</div>
-      <div class="chip-lbl">Date of Arrival</div>
-    </div>
-    <div class="info-chip">
-      <div class="chip-val">{people or '—'}</div>
-      <div class="chip-lbl">Guests</div>
-    </div>
-    <div class="info-chip">
-      <div class="chip-val">{nights or '—'}</div>
-      <div class="chip-lbl">Nights</div>
-    </div>
-  </div>
-</div>
-
-<!-- ACCOMMODATIONS -->
-<div class="section">
-  <div class="section-title">Accommodations</div>
-  {accom_name_html}
-  {accom_photo_wrap}
-  {accom_addr_html}
-  <div class="accom-meta">
-    <div class="accom-meta-item">
-      <div class="meta-lbl">Nights</div>
-      <div class="meta-val">{nights or '—'}</div>
-    </div>
-    <div class="accom-meta-item">
-      <div class="meta-lbl">Guests</div>
-      <div class="meta-val">{people or '—'}</div>
-    </div>
-  </div>
-</div>
-
-<!-- WHAT'S INCLUDED -->
-{services_section}
-
-<!-- ITINERARY -->
-{itinerary_section}
-
-<!-- PRICING -->
-<div class="section">
-  <div class="section-title">Pricing</div>
-  <div class="price-table">
-    <div class="price-group-head">Services</div>
-    <div class="price-row"><span class="label">Service Subtotal</span><span class="val">{service_subtotal}</span></div>
-    <div class="price-row"><span class="label">HST</span><span class="val">{service_hst}</span></div>
-    <div class="price-row"><span class="label">QST</span><span class="val">{service_qst}</span></div>
-    <div class="price-row"><span class="label">Credit Card Fee</span><span class="val">{service_cc_fee}</span></div>
-    <div class="price-row"><span class="label" style="font-weight:700;color:#f0f0f0;">Services Total</span><span class="val" style="color:#c9a84c;">{service_total}</span></div>
-
-    <div class="price-group-head">Accommodation</div>
-    <div class="price-row"><span class="label">Accommodation Subtotal</span><span class="val">{accom_subtotal}</span></div>
-    <div class="price-row"><span class="label">HST</span><span class="val">{accom_hst}</span></div>
-    <div class="price-row"><span class="label">QST</span><span class="val">{accom_qst}</span></div>
-    <div class="price-row"><span class="label">Hospitality Tax</span><span class="val">{accom_hosp_tax}</span></div>
-    <div class="price-row"><span class="label">Credit Card Fee</span><span class="val">{accom_cc_fee}</span></div>
-    <div class="price-row"><span class="label" style="font-weight:700;color:#f0f0f0;">Accommodation Total</span><span class="val" style="color:#c9a84c;">{accom_total}</span></div>
-
-    <div class="price-total-row">
-      <span class="label">Grand Total</span>
-      <span class="val">{grand_total}</span>
-    </div>
-    <div class="per-person">That's <strong>{per_person} per person</strong> for {people or 'your group'} guests</div>
-    {down_pay_row}
-  </div>
-</div>
-
-<!-- NEXT STEPS -->
-<div class="section">
-  <div class="section-title">Next Steps</div>
-  <div class="steps">
-    <div class="step">
-      <div class="step-num">1</div>
-      <div class="step-text">
-        <h3>Review your quote</h3>
-        <p>Look through your itinerary and pricing. Any questions? Text or email us — we're fast.</p>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">2</div>
-      <div class="step-text">
-        <h3>Pay your deposit</h3>
-        <p>Secure your weekend with a deposit. Everything is locked in once payment clears.</p>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">3</div>
-      <div class="step-text">
-        <h3>We handle the rest</h3>
-        <p>Sit back. We confirm every venue, manage all bookings, and brief you the week before.</p>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- BOOK MY TRIP CTA -->
-<div class="cta-section">
-  <p>Ready to make it official? Pay your deposit and lock in your dates — spots fill fast.</p>
-  {cta_btn_html}
-  {down_note_html}
-</div>
-
-<!-- STICKY CONTACT BAR -->
-<div class="contact-bar">
-  <a class="contact-btn" href="sms:+15143496565">
-    <span class="icon">💬</span>Text Us
-  </a>
-  <a class="contact-btn" href="mailto:Oren@connectedmontreal.com">
-    <span class="icon">✉️</span>Email
-  </a>
-  <button class="contact-btn" onclick="sharePortal()">
-    <span class="icon">🔗</span>Share
-  </button>
-</div>
-
-<script>
-function sharePortal() {{
-  const url = "{current_url}";
-  if (navigator.share) {{
-    navigator.share({{ title: "My Montreal Bachelor Party Quote", url: url }})
-      .catch(() => copyLink(url));
-  }} else {{
-    copyLink(url);
-  }}
-}}
-function copyLink(url) {{
-  navigator.clipboard.writeText(url).then(() => {{
-    alert("Link copied to clipboard!");
-  }}).catch(() => {{
-    prompt("Copy this link:", url);
-  }});
-}}
-</script>
-</body>
-</html>"""
-
-    return html
+    return render_template(
+        "quote.html",
+        first=first, last=last,
+        doa=doa, people=people, nights=nights,
+        accom_name=accom_name, accom_addr=accom_addr,
+        accom_maps_url=accom_maps_url,
+        accom_bedrooms=accom_bedrooms, accom_beds=accom_beds, accom_bathrooms=accom_bathrooms,
+        accom_photo_url=accom_photo_url, accom_pdf=accom_pdf,
+        accom_desc=accom_desc,
+        checkin=checkin, checkout=checkout,
+        services_list=services_list,
+        personal_host=personal_host,
+        events=events,
+        day_dates=day_dates,
+        total_days=total_days,
+        service_subtotal=service_subtotal, service_hst=service_hst,
+        service_qst=service_qst, service_cc_fee=service_cc_fee,
+        service_total=service_total, service_pp=service_pp,
+        accom_subtotal=accom_subtotal, accom_hst=accom_hst,
+        accom_qst=accom_qst, accom_hosp_tax=accom_hosp_tax,
+        accom_cleaning=accom_cleaning, accom_cc_fee=accom_cc_fee,
+        accom_total=accom_total, accom_pp=accom_pp,
+        grand_total=grand_total, per_person=per_person,
+        down_payment=down_payment, accom_downpay=accom_downpay,
+        cad_form=cad_form,
+        current_url=current_url,
+    )
 
 
 # Warm cache from disk on startup
